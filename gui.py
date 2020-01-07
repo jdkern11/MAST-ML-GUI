@@ -68,6 +68,7 @@ class GUI:
         frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
                         height=firstHrows_height)
         canvas.config(scrollregion=canvas.bbox("all"))
+        return (frame_canvas)
 
     def save_gen(self):
         for val in self.vars["input_features"]:
@@ -88,72 +89,116 @@ class GUI:
     
     # This method creates a new window to determine the general settings of the conf file
     # Changes will automatically save as attributes of the gui class 
-    def general(self):
+    def general(self):                    
         # create new window
         gen_root = Toplevel()
         genframe = tk.Frame(gen_root)
         genframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        genframe.columnconfigure(0, weight = 1)
+        genframe.columnconfigure(2, weight = 1)
         genframe.rowconfigure(0, weight = 1)
         genframe.pack(pady = 100, padx = 100)
+        
+        gen_widgets = [0]*7
+        # input features, widget 0
+        gen_widgets[0] = self.gen_scroll_canvas(genframe,2,1,"headers","input_features",4,5)
+        gen_widgets[0].grid_remove()
+        # target feature choice, widget 1
+        gen_widgets[1] = ttk.Combobox(genframe, values=self.vars["headers"])
+        indx = self.find_combobox_indx("headers","target_feature")
+        if (indx != -1):
+            gen_widgets[1].current(indx)
+        # randomizer choice, widget 2
+        gen_widgets[2] = Checkbutton(genframe,variable=self.vars["randomizer"],anchor='w')
+        # metrics choices, widget 3
+        metric_checkbuttons = list()
+        c = 1
+        for i in self.metrics:
+            metric_checkbuttons.append(Checkbutton(genframe,text=i,variable=self.vars["metrics"][c-1]))
+            c = c + 1   
+        gen_widgets[3] = metric_checkbuttons
+        # not_input_features, widget 4
+        gen_widgets[4] = self.gen_scroll_canvas(genframe,2,1,"headers","not_input_features",4,5)
+        gen_widgets[4].grid_remove()
+        # grouping_feature, widget 5
+        gen_widgets[5] = ttk.Combobox(genframe, values=self.vars["headers"])
+        indx = self.find_combobox_indx("headers","grouping_feature")
+        if (indx != -1):
+            gen_widgets[5].current(indx)
+        # validation_columns_canvas, widget 6
+        gen_widgets[6] = self.gen_scroll_canvas(genframe,2,1,"headers","validation_columns",4,5)
+        gen_widgets[6].grid_remove()
+        
+        # create 0 array to see if widgets active
+        active = [0]*7
+        # remove widget from frame if a new button is pressed
+        def remove():
+            for i in range(0,7):
+                if (active[i] == 1):
+                    active[i] = 0
+                    if (i != 3):
+                        gen_widgets[i].grid_remove()
+                    else:
+                        for x in gen_widgets[i]:
+                            x.grid_remove()
 
+        def input_features_btn():
+            remove()
+            gen_widgets[0].grid(row=2,column=1)
+            active[0] = 1
+            
+        def target_feature_btn():
+            remove()
+            gen_widgets[1].grid(row=3,column=1)
+            active[1] = 1
+            
+            
+        def randomizer_btn():
+            remove()
+            gen_widgets[2].grid(row=4,column=1)
+            active[2] = 1
         
-        # input features
-        input_features = self.gen_scroll_canvas(genframe,2,1,"headers","input_features",5,2)
+        def metrics_btn():
+            remove()
+            c = 1
+            for x in gen_widgets[3]:
+                x.grid(row=5,column=c)
+                c = c + 1
+            active[3] = 1
         
-        # Create labels for the various genneral settings
-        gen_l = [Label(genframe,text="General"),Label(genframe,text="input_features"),
-        Label(genframe,text="target_feature"),Label(genframe,text="randomizer"),
-        Label(genframe,text="metrics"),Label(genframe,text="not_input_features"),
-        Label(genframe,text="grouping_feature"),Label(genframe,text="validation_columns")]
+        def not_input_features_btn():
+            remove()
+            gen_widgets[4].grid(row=6,column=1)
+            active[4] = 1
+            
+        def grouping_feature_btn():
+            remove()
+            gen_widgets[5].grid(row=7,column=1)
+            active[5] = 1
+        
+        def validation_columns_btn():
+            remove()
+            gen_widgets[6].grid(row=8,column=1)
+            active[6] = 1
+            
+        def exit_btn():
+            self.vars["target_feature"] = gen_widgets[1].get()
+            self.vars["grouping_feature"] = gen_widgets[5].get()
+            gen_root.destroy()
+            gen_root.update()
+        
+        # Create labels and buttons for the various genneral settings
+        gen_l = [Label(genframe,text="General"),tk.Button(genframe,text="input_features",command=input_features_btn),
+        tk.Button(genframe,text="target_feature",command=target_feature_btn),tk.Button(genframe,text="randomizer",command=randomizer_btn),
+        tk.Button(genframe,text="metrics",command=metrics_btn),tk.Button(genframe,text="not_input_features",command=not_input_features_btn),
+        tk.Button(genframe,text="grouping_feature",command=grouping_feature_btn),tk.Button(genframe,text="validation_columns",command=validation_columns_btn)]
         
         # Add labels to grid
         r = 1
         for label in gen_l:
             label.grid(row=r, column=0)
-            if (r != 1):
-                r = r+2
-            else:
-                r = r+1
+            r = r + 1
 
-        # target feature choice
-        target_feature_combobox = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx("headers","target_feature")
-        if (indx != -1):
-            target_feature_combobox.current(indx)
-        target_feature_combobox.grid(row=4, column=1)
-        
-        # randomizer choice
-        randomizer_checkbox = Checkbutton(genframe,variable=self.vars["randomizer"],anchor='w')
-        randomizer_checkbox.grid(row=6, column=1) 
-        
-        # metrics
-        metric_checkbuttons = list()
-        c = 1
-        for i in self.metrics:
-            metric_checkbuttons.append(Checkbutton(genframe,text=i,variable=self.vars["metrics"][c-1]))
-            metric_checkbuttons[c-1].grid(row=8, column=c)
-            c = c + 1
-        
-        # not input features
-        not_input_features_canvas = self.gen_scroll_canvas(genframe,10,1,"headers","not_input_features",5,2)
-        
-        # grouping_feature
-        grouping_feature_combobox = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx("headers","grouping_feature")
-        if (indx != -1):
-            grouping_feature_combobox.current(indx)
-        grouping_feature_combobox.grid(row=12, column=1)
-        
-        # validation_columns
-        validation_columns_canvas = self.gen_scroll_canvas(genframe,14,1,"headers","validation_columns",5,2)
-        
-                
-        def exit_btn():
-            self.vars["target_feature"] = target_feature_combobox.get()
-            self.vars["grouping_feature"] = grouping_feature_combobox.get()
-            gen_root.destroy()
-            gen_root.update()
+
         
         save_b = tk.Button(genframe, 
                        text="Save and Close", 
