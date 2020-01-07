@@ -5,6 +5,7 @@ import tkinter.filedialog as fd
 import pandas as pd
 import math
 import os
+import time
 
 #--------------------------------------------------------
 # Create a Graphic User Interface for MAST-ML
@@ -19,8 +20,11 @@ class GUI:
         # Make lists of variables that will be altered based on user choices
         self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": os.getcwd(),
                      "randomizer": None, "input_features": None, "target_feature": None, "metrics": None, 
-                     "not_input_features": None, "grouping_feature": None, "validation_columns": None}
+                     "not_input_features": None, "grouping_feature": None, "validation_columns": None,
+                     "cleaning_method": None, "imputation_strategy": None}
         self.metrics = ['root_mean_squared_error', 'mean_absolute_error']
+        self.cleaning_methods = ['remove', 'imputation', 'ppca']
+        self.imputation_strategy = ['mean','median']
     
     
     # adapted from Josselin, “tkinter Canvas Scrollbar with Grid?,” Stack Overflow, 01-May-1967. [Online]. Available: https://stackoverflow.com/questions/43731784/tkinter-canvas-scrollbar-with-grid. [Accessed: 03-Jan-2020].
@@ -69,18 +73,13 @@ class GUI:
                         height=firstHrows_height)
         canvas.config(scrollregion=canvas.bbox("all"))
         return (frame_canvas)
-
-    def save_gen(self):
-        for val in self.vars["input_features"]:
-            print(val.get())
-    #TODO
     
     # This method returns the current value of a combobox. Returns -1 if no value found
     #
     # variables: list (list of values to search through), value (value being searched for)
     def find_combobox_indx(self,list,value):
         indx = 0
-        for i in self.vars[list]:
+        for i in list:
             if (i == self.vars[value]):
                 return (indx)
             indx = indx + 1  
@@ -104,7 +103,7 @@ class GUI:
         gen_widgets[0].grid_remove()
         # target feature choice, widget 1
         gen_widgets[1] = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx("headers","target_feature")
+        indx = self.find_combobox_indx(self.vars["headers"],"target_feature")
         if (indx != -1):
             gen_widgets[1].current(indx)
         # randomizer choice, widget 2
@@ -121,7 +120,7 @@ class GUI:
         gen_widgets[4].grid_remove()
         # grouping_feature, widget 5
         gen_widgets[5] = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx("headers","grouping_feature")
+        indx = self.find_combobox_indx(self.vars["headers"],"grouping_feature")
         if (indx != -1):
             gen_widgets[5].current(indx)
         # validation_columns_canvas, widget 6
@@ -141,6 +140,7 @@ class GUI:
                         for x in gen_widgets[i]:
                             x.grid_remove()
 
+        # Generate buttons to show various widgets
         def input_features_btn():
             remove()
             gen_widgets[0].grid(row=2,column=1)
@@ -205,6 +205,67 @@ class GUI:
                        fg="red",
                        command=exit_btn)
         save_b.grid(row=0, column=0)
+        
+        
+    # This method allows the user to fill out the data cleaning section of the conf file
+    def data_cleaning(self):
+        # create new window
+        data_clean_root = Toplevel()
+        data_cleanframe = tk.Frame(data_clean_root)
+        data_cleanframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        data_cleanframe.columnconfigure(2, weight = 1)
+        data_cleanframe.rowconfigure(0, weight = 1)
+        data_cleanframe.pack(pady = 100, padx = 100)
+        
+        data_clean_l = [Label(data_cleanframe,text="cleaning_method"),Label(data_cleanframe,text="imputation_strategy")]
+        r = 1
+        for label in data_clean_l:
+            # ignore imputation strategy but leave this way incase more data cleaning options added in the future
+            if (r != 2):
+                label.grid(row=r, column=0)
+            r = r + 1
+        # will need to change if more options added to data_clean section
+        data_clean_widgets = [0]*2
+        
+        # imputation strategy widget, widget 1
+        data_clean_widgets[1] = ttk.Combobox(data_cleanframe, values=self.imputation_strategy)
+        indx = self.find_combobox_indx(self.imputation_strategy,"imputation_strategy")
+        if (indx != -1):
+            data_clean_widgets[1].current(indx)
+                        
+        # Method derived from following resource:
+        # F. Segers, “Intercept event when combobox edited,” Stack Overflow, 01-Dec-2011. [Online]. Available: https://stackoverflow.com/questions/8432419/intercept-event-when-combobox-edited. [Accessed: 07-Jan-2020].
+        # Only show the data imputation options if data imputation is chosen as the cleaning method
+        def on_field_change(event):
+            data_clean_widgets[1].grid_remove()
+            data_clean_l[1].grid_remove()
+            if (data_clean_widgets[0].current() == 1):
+                data_clean_widgets[1].grid(row = 2, column = 1)
+                data_clean_l[1].grid(row=2, column=0)
+        
+        # cleaning method widget, widget 0
+        data_clean_widgets[0] = ttk.Combobox(data_cleanframe,values=self.cleaning_methods)
+        data_clean_widgets[0].bind('<<ComboboxSelected>>', on_field_change)
+        indx = self.find_combobox_indx(self.cleaning_methods,"cleaning_method")
+        if (indx != -1):
+            data_clean_widgets[0].current(indx)
+            if (indx == 1):
+                data_clean_widgets[1].grid(row=2, column=1)
+                data_clean_l[1].grid(row=2, column=0)               
+        data_clean_widgets[0].grid(row = 1, column = 1)     
+       
+        # exit button to save choices
+        def exit_btn():
+            self.vars["cleaning_method"] = data_clean_widgets[0].get()
+            self.vars["imputation_strategy"] = data_clean_widgets[1].get()
+            data_clean_root.destroy()
+            data_clean_root.update()
+            
+        save_b = tk.Button(data_cleanframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.grid(row=0, column=0)
 
     # Make button to load csv file headers and location
     def load_csv(self):
@@ -220,13 +281,13 @@ class GUI:
         i_f = list()
         n_i_f = list()
         v_c = list()
+        m = list()
         for i in range(0,num_cols):
             i_f.append(IntVar())
             n_i_f.append(IntVar())
             v_c.append(IntVar())
-        m = list()
-        for i in range(0,2):
-            m.append(IntVar())
+            if (i < 2):
+                m.append(IntVar())
         self.vars["input_features"] =  i_f
         self.vars["not_input_features"] = n_i_f
         self.vars["validation_columns"] = v_c
@@ -290,5 +351,11 @@ gen_b = tk.Button(mainframe,
                    text="General", 
                    command=lambda : gui.general())
 gen_b.grid(row=1, column=0)
+
+# fill out the data cleaning section
+gen_b = tk.Button(mainframe, 
+                   text="Data Cleaning", 
+                   command=lambda : gui.data_cleaning())
+gen_b.grid(row=2, column=0)
 
 root.mainloop()
