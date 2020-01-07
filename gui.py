@@ -121,11 +121,11 @@ class GUI:
         indx = self.find_combobox_indx("headers","target_feature")
         if (indx != -1):
             target_feature_combobox.current(indx)
-        #target_feature_combobox.grid(row=4, column=1)
+        target_feature_combobox.grid(row=4, column=1)
         
         # randomizer choice
         randomizer_checkbox = Checkbutton(genframe,variable=self.vars["randomizer"],anchor='w')
-        #randomizer_checkbox.grid(row=6, column=1) 
+        randomizer_checkbox.grid(row=6, column=1) 
         
         # metrics
         metric_checkbuttons = list()
