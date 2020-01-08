@@ -21,11 +21,34 @@ class GUI:
         self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": os.getcwd(),
                      "randomizer": None, "input_features": None, "target_feature": None, "metrics": None, 
                      "not_input_features": None, "grouping_feature": None, "validation_columns": None,
-                     "cleaning_method": None, "imputation_strategy": None}
+                     "cleaning_method": None, "imputation_strategy": None, "clustering": None}
         self.metrics = ['root_mean_squared_error', 'mean_absolute_error']
         self.cleaning_methods = ['remove', 'imputation', 'ppca']
         self.imputation_strategy = ['mean','median']
-    
+        self.clustering = ['AffinityPropagation','AgglomerativeClustering','Birch','DBSCAN',
+                           'KMeans','MiniBatchKMeans','MeanShift','SpectralClustering']
+        # make a separate list of cluster variables
+        # TODO find what other strings possible
+        self.c_vars = {"headers": self.clustering, "AffinityPropagation": {'damping': 0.5, 'max_iter': 200, 'convergence_iter': 15, 'affinity': 'euclidean'}, 
+                      "AgglomerativeClustering": {'n_clusters': 2, 'affinity': 'euclidean', 'compute_full_tree': 'auto', 'linkage': 'ward'},
+                      "Birch": {'threshold': 0.5, 'branching_factor': 50, 'n_clusters': 3}, 
+                      "DBSCAN": {'eps': 0.5, 'min_samples':5, 'metric': 'euclidean', 'algorithm': 'auto', 'leaf_size': 30}, 
+                      "KMeans": {'n_clusters': 8, 'n_init': 10, 'max_iter': 300, 'tol': 0.0001},
+                      "MiniBatchKMeans": {'n_clusters': 8, 'max_iter': 100, 'batch_size': 100}, 
+                      "MeanShift": None,
+                      "SpectralClustering": {'n_clusters': 8, 'n_init': 10, 'gamma': 1.0, 'affinity': 'rbf'}}
+                           
+        self.vars["randomizer"] = IntVar()
+        
+        met = list()
+        for i in range(0,2):
+            met.append(IntVar())
+        self.vars["metrics"] = met
+        
+        cluster = list()
+        for i in range(0,len(self.clustering)):
+            cluster.append(IntVar())
+        self.vars["clustering"] = cluster
     
     # adapted from Josselin, “tkinter Canvas Scrollbar with Grid?,” Stack Overflow, 01-May-1967. [Online]. Available: https://stackoverflow.com/questions/43731784/tkinter-canvas-scrollbar-with-grid. [Accessed: 03-Jan-2020].
     # generates scrollable canvas to store data in
@@ -55,8 +78,8 @@ class GUI:
         c = 0
         indx = 0
         features_list = list()
-        for feature in self.vars[texts]:
-            features_list.append(Checkbutton(frame_buttons,text=self.vars[texts][indx],variable=self.vars[tf][indx]))
+        for feature in texts:
+            features_list.append(Checkbutton(frame_buttons,text=texts[indx],variable=tf[indx]))
             features_list[indx].grid(row=r, column=c, sticky='news')
             indx = indx + 1
             c = c+1
@@ -74,6 +97,15 @@ class GUI:
         canvas.config(scrollregion=canvas.bbox("all"))
         return (frame_canvas)
     
+    # Method to determine if a value is a number
+    #
+    # variables: s (string)
+    def is_number(self,s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
     # This method returns the current value of a combobox. Returns -1 if no value found
     #
     # variables: list (list of values to search through), value (value being searched for)
@@ -99,7 +131,7 @@ class GUI:
         
         gen_widgets = [0]*7
         # input features, widget 0
-        gen_widgets[0] = self.gen_scroll_canvas(genframe,2,1,"headers","input_features",4,5)
+        gen_widgets[0] = self.gen_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["input_features"],4,5)
         gen_widgets[0].grid_remove()
         # target feature choice, widget 1
         gen_widgets[1] = ttk.Combobox(genframe, values=self.vars["headers"])
@@ -116,7 +148,7 @@ class GUI:
             c = c + 1   
         gen_widgets[3] = metric_checkbuttons
         # not_input_features, widget 4
-        gen_widgets[4] = self.gen_scroll_canvas(genframe,2,1,"headers","not_input_features",4,5)
+        gen_widgets[4] = self.gen_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["not_input_features"],4,5)
         gen_widgets[4].grid_remove()
         # grouping_feature, widget 5
         gen_widgets[5] = ttk.Combobox(genframe, values=self.vars["headers"])
@@ -124,7 +156,7 @@ class GUI:
         if (indx != -1):
             gen_widgets[5].current(indx)
         # validation_columns_canvas, widget 6
-        gen_widgets[6] = self.gen_scroll_canvas(genframe,2,1,"headers","validation_columns",4,5)
+        gen_widgets[6] = self.gen_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["validation_columns"],4,5)
         gen_widgets[6].grid_remove()
         
         # create 0 array to see if widgets active
@@ -266,6 +298,45 @@ class GUI:
                        fg="red",
                        command=exit_btn)
         save_b.grid(row=0, column=0)
+        
+    # This method will allow a user to choose clustering options
+    def clustering_btn(self):
+        # create new window
+        clustering_root = Toplevel()
+        clusteringframe = tk.Frame(clustering_root)
+        clusteringframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        clusteringframe.columnconfigure(2, weight = 1)
+        clusteringframe.rowconfigure(0, weight = 1)
+        clusteringframe.pack(pady = 100, padx = 100)
+        
+        # make a list of clustering check buttons
+        c = 1
+        cluster_checkbuttons = list()
+        for x in self.clustering:
+            cluster_checkbuttons.append(Checkbutton(clusteringframe,text=x,variable=self.vars["clustering"][c-1]))
+            cluster_checkbuttons[c-1].grid(row=1,column=c)
+            # Access the dictionaries in c_vars
+            for key in self.c_vars:
+                if (key == x):
+                    r = 1
+                    # or [] gets rid of NoneType not iterable exception
+                    for key2 in self.c_vars[key] or []:
+                        if(self.is_number(self.c_vars[key][key2])):
+                            print(self.c_vars[key][key2])
+                        r = r + 1
+                
+                    
+            c = c + 1
+        #exit button to save choices
+        def exit_btn():
+            clustering_root.destroy()
+            clustering_root.update()
+            
+        save_b = tk.Button(clusteringframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.grid(row=0, column=0)
 
     # Make button to load csv file headers and location
     def load_csv(self):
@@ -281,18 +352,15 @@ class GUI:
         i_f = list()
         n_i_f = list()
         v_c = list()
-        m = list()
         for i in range(0,num_cols):
             i_f.append(IntVar())
             n_i_f.append(IntVar())
             v_c.append(IntVar())
-            if (i < 2):
-                m.append(IntVar())
+            
         self.vars["input_features"] =  i_f
         self.vars["not_input_features"] = n_i_f
         self.vars["validation_columns"] = v_c
-        self.vars["randomizer"] = IntVar()
-        self.vars["metrics"] = m
+
 
 
     
@@ -357,5 +425,10 @@ gen_b = tk.Button(mainframe,
                    text="Data Cleaning", 
                    command=lambda : gui.data_cleaning())
 gen_b.grid(row=2, column=0)
+
+gen_b = tk.Button(mainframe, 
+                   text="Clustering", 
+                   command=lambda : gui.clustering_btn())
+gen_b.grid(row=3, column=0)
 
 root.mainloop()
