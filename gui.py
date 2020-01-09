@@ -19,14 +19,26 @@ class GUI:
     def __init__(self):
         # Make lists of variables that will be altered based on user choices
         self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": os.getcwd(),
-                     "randomizer": None, "input_features": None, "target_feature": None, "metrics": None, 
+                     "randomizer": IntVar(), "input_features": None, "target_feature": None, "metrics": None, 
                      "not_input_features": None, "grouping_feature": None, "validation_columns": None,
-                     "cleaning_method": None, "imputation_strategy": None, "clustering": None}
-        self.metrics = ['root_mean_squared_error', 'mean_absolute_error']
+                     "cleaning_method": None, "imputation_strategy": None, "clustering": None, 
+                     "FeatureGeneration": None, "composition_feature": None}
+                     
+        # General variable creations
+        self.metrics = ['root_mean_squared_error', 'mean_absolute_error']                   
+        met = list()
+        for i in range(0,2):
+            met.append(IntVar())
+        self.vars["metrics"] = met
+        
+        
+        # Cleaning methods variables
         self.cleaning_methods = ['remove', 'imputation', 'ppca']
         self.imputation_strategy = ['mean','median']
+        
+        # Clustering variables
         self.clustering = ['AffinityPropagation','AgglomerativeClustering','Birch','DBSCAN',
-                           'KMeans','MiniBatchKMeans','MeanShift','SpectralClustering']
+                           'KMeans','MiniBatchKMeans','MeanShift','SpectralClustering']                   
         # make a separate list of cluster variables
         # TODO find what other strings possible
         self.c_vars = {"headers": self.clustering, "AffinityPropagation": {'damping': 0.5, 'max_iter': 200, 'convergence_iter': 15, 'affinity': 'euclidean'}, 
@@ -55,19 +67,29 @@ class GUI:
                                         "DBSCANmetric":self.DBSCAN_metric,
                                         "DBSCANalgorithm":self.DBSCAN_algorithm,
                                         "SpectralClusteringaffinity":self.spectral_clustering_affinity}
-
-         
-        self.vars["randomizer"] = IntVar()
-        
-        met = list()
-        for i in range(0,2):
-            met.append(IntVar())
-        self.vars["metrics"] = met
-        
+        # Cluster checkbox list
         cluster = list()
         for i in range(0,len(self.clustering)):
             cluster.append(IntVar())
         self.vars["clustering"] = cluster
+                                        
+        # Make list for feature generation vars     
+        self.feature_types = ["composition_avg","arithmetic_avg","max","min","difference","elements"]
+        feature_types_binary = list()
+        for i in self.feature_types:
+            feature_types_binary.append(IntVar())
+        self.fg_vars = {"Magpie": {"feature_types": feature_types_binary},
+                        "MaterialsProject":{"api_key": "fill in"},
+                        "Citrine": {"api_key": "fill in"},
+                        "ContainsElement": {"all_elements": IntVar(), "element": "Ex: Al", "new_name": "Ex: has_Al"},
+                        "PolynomialFeatures": {"degree": 2, "interaction_only": IntVar(), "include_bias": IntVar()}}
+        # feature generation checkbox lists
+        fg = list()
+        for i in range(0,len(self.fg_vars)):
+            fg.append(IntVar())
+        self.vars["FeatureGeneration"] = fg 
+        
+        
     
     # adapted from Josselin, “tkinter Canvas Scrollbar with Grid?,” Stack Overflow, 01-May-1967. [Online]. Available: https://stackoverflow.com/questions/43731784/tkinter-canvas-scrollbar-with-grid. [Accessed: 03-Jan-2020].
     # generates scrollable canvas to store data in
@@ -125,6 +147,68 @@ class GUI:
             return True
         except ValueError:
             return False
+    
+    # Method to generate and return list of various tkinter user options
+    #
+    # variables:frame, sr (start row), sc (start column), vars (variables to be generated) 
+    def generate_user_options(self,frame,sr,sc,vars,combobox_vars):
+        labels = list()
+        vars_dict = {}
+        c = sc
+        indx = 0
+        for key in vars:
+            r = sr
+            # or [] gets rid of NoneType not iterable exception
+            for key2 in vars[key] or []:
+                # if it is a list, it will be a checkbox type
+                if(isinstance(vars[key][key2], list)):
+                    labels.append(Label(frame,text=key2))
+                    labels[indx].grid(row=r,column=c)
+                    r = r+1
+                    indx = indx+1
+                    temp = list()
+                    indx2 = 0
+                    for i in getattr(self,key2):
+                        temp.append(Checkbutton(frame,text=i,variable=vars[key][key2][indx2]))
+                        temp[indx2].grid(row=r,column=c)
+                        r = r + 1
+                        indx2 = indx2+1
+                    vars_dict[(key+key2)] = temp
+                # TODO add combobox for option if it is an option that has a discrete number of string options
+                elif (combobox_vars != None):
+                    if((key+key2) in combobox_vars.keys()):
+                        labels.append(Label(frame,text=key2))
+                        labels[indx].grid(row=r,column=c)
+                        r = r+1
+                        indx = indx+1
+                        print("todo")
+                        """
+                        c_vars_dict[(key+key2)] = ttk.Combobox(clusteringframe, values=self.c_vars_combobox_options[(key+key2)])
+                        combobox_keys.append(key+key2)
+                        indx3 = self.find_combobox_indx(self.c_vars_combobox_options[(key+key2)],self.c_vars[key][key2])
+                        if (indx3 != -1):
+                            c_vars_dict[(key+key2)].current(indx3)
+                        c_vars_dict[(key+key2)].grid(row=r+1,column=c)
+                        """
+                      
+                elif(isinstance(vars[key][key2], IntVar)):
+                    vars_dict[(key+key2)] = Checkbutton(frame,text=key2,variable=vars[key][key2])
+                    vars_dict[(key+key2)].grid(row=r, column=c)
+                    r = r+1
+                    
+                # make changable entry if a number value or if a string == ---
+                elif(self.is_number(vars[key][key2]) or isinstance(vars[key][key2], str)):
+                    labels.append(Label(frame,text=key2))
+                    labels[indx].grid(row=r,column=c)
+                    r = r+1
+                    indx = indx+1
+                    vars_dict[(key+key2)] = Entry(frame)
+                    vars_dict[(key+key2)].insert(0,vars[key][key2])
+                    vars_dict[(key+key2)].grid(row=r,column=c)
+                    r = r + 1                
+            c = c + 1
+        return vars_dict
+    
     # This method returns the current value of a combobox. Returns -1 if no value found
     #
     # variables: list (list of values to search through), value (value being searched for)
@@ -391,6 +475,65 @@ class GUI:
                        command=exit_btn)
         save_b.grid(row=0, column=0)
 
+    # This method will allow a user to choose feature generation options
+    def fg_btn(self):
+        # create new window
+        fg_root = Toplevel()
+        fgframe = tk.Frame(fg_root)
+        fgframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        fgframe.columnconfigure(2, weight = 1)
+        fgframe.rowconfigure(0, weight = 1)
+        fgframe.pack(pady = 100, padx = 100)
+        
+        # make a list of fg checkbuttons
+        fg_checkbuttons = list()
+        indx = 0
+        fg_label = Label(fgframe, text="Feature Generation Methods")
+        fg_label.grid(row=2, column=0)
+        for i in self.fg_vars:
+            fg_checkbuttons.append(Checkbutton(fgframe,text=i,variable=self.vars["FeatureGeneration"][indx]))
+            fg_checkbuttons[indx].grid(row = 2, column = indx+1)
+            indx = indx + 1
+        
+        # Choose composition feature
+        cf = ttk.Combobox(fgframe, values=self.vars["headers"])
+        cf_label = Label(fgframe, text="Composition Feature")
+        cf_label.grid(row=1, column=0)
+        indx = self.find_combobox_indx(self.vars["headers"],self.vars["composition_feature"])
+        if (indx != -1):
+            cf.current(indx)
+        cf.grid(row=1, column = 1)
+        
+        user_choices = self.generate_user_options(fgframe,3,1,self.fg_vars, None)
+        # Add the other options
+        #exit button to save choices
+        def exit_btn():
+            self.vars['composition_feature'] = cf.get()
+            for key in self.fg_vars:
+                for key2 in self.fg_vars[key] or []:
+                    if (isinstance(self.fg_vars[key][key2],list) or isinstance(self.fg_vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.is_number(self.fg_vars[key][key2]) or isinstance(self.fg_vars[key][key2],str)):
+                        if (key2 == "degree"):
+                            if (self.is_number(user_choices[key+key2].get())):
+                                self.fg_vars[key][key2] = user_choices[key+key2].get()
+                        else:
+                            self.fg_vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            fg_root.destroy()
+            fg_root.update()
+            
+        save_b = tk.Button(fgframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.grid(row=0, column=0)
+    
+    # This method will allow a user to choose feature normalization options
+    def fn_btn(self):
+        print("todo")
+    
     # Make button to load csv file headers and location
     def load_csv(self):
         csv_filename = fd.askopenfilename()
@@ -483,5 +626,15 @@ gen_b = tk.Button(mainframe,
                    text="Clustering", 
                    command=lambda : gui.clustering_btn())
 gen_b.grid(row=3, column=0)
+
+gen_b = tk.Button(mainframe, 
+                   text="Feature Generation", 
+                   command=lambda : gui.fg_btn())
+gen_b.grid(row=4, column=0)
+
+gen_b = tk.Button(mainframe, 
+                   text="Feature Normalization", 
+                   command=lambda : gui.fn_btn())
+gen_b.grid(row=5, column=0)
 
 root.mainloop()
