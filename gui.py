@@ -37,7 +37,26 @@ class GUI:
                       "MiniBatchKMeans": {'n_clusters': 8, 'max_iter': 100, 'batch_size': 100}, 
                       "MeanShift": None,
                       "SpectralClustering": {'n_clusters': 8, 'n_init': 10, 'gamma': 1.0, 'affinity': 'rbf'}}
-                           
+        # create list of possible values string choices in clustering
+        self.affinity_propagation_affinity = ['euclidean','precomputed']
+        # if ward, must be euclidean
+        self.agglomerative_clustering_affinity = ['euclidean', 'l1', 'l2', 'manhattan', 'cosine', 'precomputed']
+        self.compute_full_tree = ['auto', 'True', 'False']
+        self.linkage = ['ward', 'complete', 'average', 'single']
+        # TODO, add options for this. There are so thinks to note for it
+        self.DBSCAN_metric = ['euclidean']
+        self.DBSCAN_algorithm = ['auto','ball_tree','kd_tree','brute']
+        # TODO there may be other pairwise kernels that can be added
+        self.spectral_clustering_affinity = ['rbf','nearest_neighbors','precomputed','precomputed_nearest_neighbors']
+        self.c_vars_combobox_options = {"AffinityPropagationaffinity":self.affinity_propagation_affinity,
+                                        "AgglomerativeClusteringaffinity":self.agglomerative_clustering_affinity,
+                                        "AgglomerativeClusteringcompute_full_tree":self.compute_full_tree,
+                                        "AgglomerativeClusteringlinkage":self.linkage,
+                                        "DBSCANmetric":self.DBSCAN_metric,
+                                        "DBSCANalgorithm":self.DBSCAN_algorithm,
+                                        "SpectralClusteringaffinity":self.spectral_clustering_affinity}
+
+         
         self.vars["randomizer"] = IntVar()
         
         met = list()
@@ -112,7 +131,7 @@ class GUI:
     def find_combobox_indx(self,list,value):
         indx = 0
         for i in list:
-            if (i == self.vars[value]):
+            if (i == value):
                 return (indx)
             indx = indx + 1  
         return (-1)
@@ -135,7 +154,7 @@ class GUI:
         gen_widgets[0].grid_remove()
         # target feature choice, widget 1
         gen_widgets[1] = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx(self.vars["headers"],"target_feature")
+        indx = self.find_combobox_indx(self.vars["headers"],self.vars["target_feature"])
         if (indx != -1):
             gen_widgets[1].current(indx)
         # randomizer choice, widget 2
@@ -152,7 +171,7 @@ class GUI:
         gen_widgets[4].grid_remove()
         # grouping_feature, widget 5
         gen_widgets[5] = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx(self.vars["headers"],"grouping_feature")
+        indx = self.find_combobox_indx(self.vars["headers"],self.vars["grouping_feature"])
         if (indx != -1):
             gen_widgets[5].current(indx)
         # validation_columns_canvas, widget 6
@@ -261,7 +280,7 @@ class GUI:
         
         # imputation strategy widget, widget 1
         data_clean_widgets[1] = ttk.Combobox(data_cleanframe, values=self.imputation_strategy)
-        indx = self.find_combobox_indx(self.imputation_strategy,"imputation_strategy")
+        indx = self.find_combobox_indx(self.imputation_strategy,self.vars["imputation_strategy"])
         if (indx != -1):
             data_clean_widgets[1].current(indx)
                         
@@ -278,7 +297,7 @@ class GUI:
         # cleaning method widget, widget 0
         data_clean_widgets[0] = ttk.Combobox(data_cleanframe,values=self.cleaning_methods)
         data_clean_widgets[0].bind('<<ComboboxSelected>>', on_field_change)
-        indx = self.find_combobox_indx(self.cleaning_methods,"cleaning_method")
+        indx = self.find_combobox_indx(self.cleaning_methods,self.vars["cleaning_method"])
         if (indx != -1):
             data_clean_widgets[0].current(indx)
             if (indx == 1):
@@ -312,23 +331,52 @@ class GUI:
         # make a list of clustering check buttons
         c = 1
         cluster_checkbuttons = list()
+        indx = 0
+        indx2 = 0
+        cluster_labels = list()
+        c_vars_dict = {}
         for x in self.clustering:
-            cluster_checkbuttons.append(Checkbutton(clusteringframe,text=x,variable=self.vars["clustering"][c-1]))
-            cluster_checkbuttons[c-1].grid(row=1,column=c)
+            cluster_checkbuttons.append(Checkbutton(clusteringframe,text=x,variable=self.vars["clustering"][indx2]))
+            cluster_checkbuttons[indx2].grid(row=1,column=c)
+            indx2 = indx2 + 1
             # Access the dictionaries in c_vars
             for key in self.c_vars:
+                # if it is the current clustering option, add that options fields to the gui
                 if (key == x):
-                    r = 1
+                    r = 2
                     # or [] gets rid of NoneType not iterable exception
                     for key2 in self.c_vars[key] or []:
+                        # add labels
+                        cluster_labels.append(Label(clusteringframe,text=key2))
+                        cluster_labels[indx].grid(row=r,column=c)
+                        indx = indx + 1
+                        # make changable entry if a number value
                         if(self.is_number(self.c_vars[key][key2])):
-                            print(self.c_vars[key][key2])
-                        r = r + 1
-                
-                    
+                            c_vars_dict[(key+key2)] = Entry(clusteringframe)
+                            c_vars_dict[(key+key2)].insert(0,self.c_vars[key][key2])
+                            c_vars_dict[(key+key2)].grid(row=r+1,column=c)
+                        # add combobox for option if it is an option that has a discrete number of string options
+                        else:
+                            c_vars_dict[(key+key2)] = ttk.Combobox(clusteringframe, values=self.c_vars_combobox_options[(key+key2)])
+                            indx3 = self.find_combobox_indx(self.c_vars_combobox_options[(key+key2)],self.c_vars[key][key2])
+                            if (indx3 != -1):
+                                c_vars_dict[(key+key2)].current(indx3)
+                            c_vars_dict[(key+key2)].grid(row=r+1,column=c)
+                            
+                        r = r + 2                  
             c = c + 1
+            
         #exit button to save choices
         def exit_btn():
+            # save changes
+            for x in self.clustering:
+                for key in self.c_vars:
+                    if (key == x):
+                        for key2 in self.c_vars[key] or []:
+                            self.c_vars[key][key2] = c_vars_dict[(key+key2)].get()
+                            # this is a stipulation according to scikit-learn, so I will be nice an ensure it.
+                            if (key == 'AgglomerativeClustering' and key2 == 'linkage' and self.c_vars[key][key2] == 'ward'):
+                                self.c_vars[key]['affinity'] = 'euclidean'
             clustering_root.destroy()
             clustering_root.update()
             
