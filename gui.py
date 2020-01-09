@@ -334,6 +334,7 @@ class GUI:
         indx = 0
         indx2 = 0
         cluster_labels = list()
+        combobox_keys = list()
         c_vars_dict = {}
         for x in self.clustering:
             cluster_checkbuttons.append(Checkbutton(clusteringframe,text=x,variable=self.vars["clustering"][indx2]))
@@ -358,6 +359,7 @@ class GUI:
                         # add combobox for option if it is an option that has a discrete number of string options
                         else:
                             c_vars_dict[(key+key2)] = ttk.Combobox(clusteringframe, values=self.c_vars_combobox_options[(key+key2)])
+                            combobox_keys.append(key+key2)
                             indx3 = self.find_combobox_indx(self.c_vars_combobox_options[(key+key2)],self.c_vars[key][key2])
                             if (indx3 != -1):
                                 c_vars_dict[(key+key2)].current(indx3)
@@ -373,7 +375,10 @@ class GUI:
                 for key in self.c_vars:
                     if (key == x):
                         for key2 in self.c_vars[key] or []:
-                            self.c_vars[key][key2] = c_vars_dict[(key+key2)].get()
+                            if (self.is_number(c_vars_dict[(key+key2)].get())):
+                                self.c_vars[key][key2] = c_vars_dict[(key+key2)].get()
+                            elif (key+key2) in combobox_keys:
+                                self.c_vars[key][key2] = c_vars_dict[(key+key2)].get()
                             # this is a stipulation according to scikit-learn, so I will be nice an ensure it.
                             if (key == 'AgglomerativeClustering' and key2 == 'linkage' and self.c_vars[key][key2] == 'ward'):
                                 self.c_vars[key]['affinity'] = 'euclidean'
