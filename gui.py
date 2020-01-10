@@ -22,7 +22,8 @@ class GUI:
                      "randomizer": IntVar(), "input_features": None, "target_feature": None, "metrics": None, 
                      "not_input_features": None, "grouping_feature": None, "validation_columns": None,
                      "cleaning_method": None, "imputation_strategy": None, "clustering": None, 
-                     "FeatureGeneration": None, "composition_feature": None}
+                     "FeatureGeneration": None, "composition_feature": None, "FeatureNormalization": None,
+                     "models": None}
                      
         # General variable creations
         self.metrics = ['root_mean_squared_error', 'mean_absolute_error']                   
@@ -89,6 +90,76 @@ class GUI:
             fg.append(IntVar())
         self.vars["FeatureGeneration"] = fg 
         
+        # Make list of feature normalizationvars
+        # Add combolist for output_distribution later probably
+        self.fn_vars = {"Binarizer": {"threshold": 0.0},
+                        "MaxAbsScaler": None,
+                        "MinMaxScaler": None,
+                        "Normalizer": {"norm": 12},
+                        "QuantileTransformer": {"n_quantiles": 1000, "output_distribution": "uniform"},
+                        "RobustScaler": {"with_centering": IntVar(), "with_scaling": IntVar()},
+                        "StandardScaler": None,
+                        "MeanStdevScaler": {"mean": 0, "stdev": 1}}
+        fn = list()
+        for i in range(0,len(self.fn_vars)):
+            fn.append(IntVar())
+        self.vars["FeatureNormalization"] = fn
+        
+        # Make combolists for these variables
+        self.model_vars = {"AdaBoostClassifier": { "n_estimators" : 50, "learning_rate" : 1.0},
+                           "AdaBoostRegressor": { "n_estimators" : 50, "learning_rate" : 1.0},
+                           "BaggingClassifier": { "n_estimators" : 50, "maxamples" : 1.0, "max_features" : 1.0},
+                           "BaggingRegressor": { "n_estimators" : 50, "maxamples" : 1.0, "max_features" : 1.0},
+                           "ExtraTreesClassifier": { "n_estimators" : 50, "criterion" : "gini", "minamples_split" : 2, "min_samples_leaf" : 1},
+                           "ExtraTreesRegressor": { "n_estimators" : 50, "criterion" : "mse", "minamples_split" : 2, "min_samples_leaf" : 1},
+                           "GradientBoostingClassifier": { "loss" : "deviance", "learning_rate" : 1.0, "n_estimators" : 100, "subsample" : 1.0, "criterion" : "friedman_mse", "minamples_split" : 2, "min_samples_leaf" : 1},
+                           "GradientBoostingRegressor": { "loss" : "ls", "learning_rate" : 0.1, "n_estimators" : 100, "subsample" : 1.0, "criterion" : "friedman_mse", "minamples_split" : 2, "min_samples_leaf" : 1},
+                           "RandomForestClassifier": { "n_estimators" : 10, "criterion" : "gini", "minamples_leaf" : 1, "min_samples_split" : 2},
+                           "RandomForestRegressor": { "n_estimators" : 10, "criterion" : "mse", "minamples_leaf" : 1, "min_samples_split" : 2},
+                           "KernelRidge": { "alpha" : 1, "kernel" : "linear"},
+                           "KernelRidgeelectMASTML": { "alpha" : 1, "kernel" : "linear"},
+                           "KernelRidge_learn": { "alpha" : 1, "kernel" : "linear"},
+                           "ARDRegression": { "n_iter" : 300},
+                           "BayesianRidge": { "n_iter" : 300},
+                           "ElasticNet": { "alpha" : 1.0},
+                           "HuberRegressor": { "epsilon" : 1.35, "max_iter" : 100},
+                           "Lars": None,
+                           "Lasso": { "alpha" : 1.0},
+                           "LassoLars": { "alpha" : 1.0, "max_iter" : 500},
+                           "LassoLarsIC": { "criterion" : "aic", "max_iter" : 500},
+                           "LinearRegression": None,
+                           "LogisticRegression": { "penalty" : 12, "C" : 1.0},
+                           "Perceptron": { "alpha" : 0.0001},
+                           "Ridge": { "alpha" : 1.0},
+                           "RidgeClassifier": { "alpha" : 1.0},
+                           "SGDClassifier": { "loss" : "hinge", "penalty" : 12, "alpha" : 0.0001},
+                           "SGDRegressor": { "loss" : "squared_loss", "penalty" : 12, "alpha" : 0.0001},
+                           "MLPClassifier": { "hidden_layerizes" : 100, "activation" : "relu", "solver" : "adam", "alpha" : 0.0001, "batch_size" : "auto", "learning_rate" : "constant"},
+                           "MLPRegressor": { "hidden_layerizes" : 100, "activation" : "relu", "solver" : "adam", "alpha" : 0.0001, "batch_size" : "auto", "learning_rate" : "constant"},
+                           "LinearSVC": { "penalty" : 12, "loss" : "squared_hinge", "tol" : 0.0001, "C" : 1.0},
+                           "LinearSVR": { "epsilon" : 0.1, "loss" : "epsilon_insensitive", "tol" : 0.0001, "C" : 1.0},
+                           "NuSVC": { "nu" : 0.5, "kernel" : "rbf", "degree" : 3},
+                           "NuSVR": { "nu" : 0.5, "C" : 1.0, "kernel" : "rbf", "degree" : 3},
+                           "SVC": { "C" : 1.0, "kernel" : "rbf", "degree" : 3},
+                           "SVR": { "C" : 1.0, "kernel" : "rbf", "degree" : 3},
+                           "DecisionTreeClassifier": { "criterion" : "gini", "splitter" : "best", "minamples_split" : 2, "min_samples_leaf" : 1},
+                           "DecisionTreeRegressor": { "criterion" : "mse", "splitter" : "best", "minamples_split" : 2, "min_samples_leaf" : 1},
+                           "ExtraTreeClassifier": { "criterion" : "gini", "splitter" : "random", "minamples_split" : 2, "min_samples_leaf" : 1},
+                           "ExtraTreeRegressor": { "criterion" : "mse", "splitter" : "random", "minamples_split" : 2, "min_samples_leaf" : 1}}
+        models = list()
+        for i in range(0,len(self.model_vars)):
+            models.append(IntVar())
+        self.vars["models"] = models
+        
+        # Todo: Finish later
+        self.fs_vars = {"GenericUnivariateSelect": None,
+                        "SelectPercentile": None,
+                        "SelectKBest": None,
+                        "SelectFpr": None,
+                        "SelectFdr": None,
+                        "SelectFwe":None,
+                        "RFE": None}
+                            
         
     
     # adapted from Josselin, “tkinter Canvas Scrollbar with Grid?,” Stack Overflow, 01-May-1967. [Online]. Available: https://stackoverflow.com/questions/43731784/tkinter-canvas-scrollbar-with-grid. [Accessed: 03-Jan-2020].
@@ -96,7 +167,7 @@ class GUI:
     # 
     # variables: frame, gr (grid row), gc (grid column), texts (text for checkbuttons), tf (true false vars for checkbuttons)
     #            w (width, number of check buttons per row), h (height, number of check buttons per column)
-    def gen_scroll_canvas(self,frame,gr,gc,texts,tf,w,h):
+    def gen_y_scroll_canvas(self,frame,gr,gc,texts,tf,w,h):
         frame_canvas = tk.Frame(frame)
         frame_canvas.grid(row=gr, column=gc, pady=(w, 0), sticky='nw')
         frame_canvas.grid_rowconfigure(0, weight=1)
@@ -137,6 +208,52 @@ class GUI:
                         height=firstHrows_height)
         canvas.config(scrollregion=canvas.bbox("all"))
         return (frame_canvas)
+        
+        
+    def gen_x_scroll_canvas(self,frame,gr,gc,texts,tf,w,h):
+        frame_canvas = tk.Frame(frame)
+        frame_canvas.grid(row=gr, column=gc, pady=(w, 0), sticky='nw')
+        frame_canvas.grid_rowconfigure(0, weight=1)
+        frame_canvas.grid_columnconfigure(0, weight=1)
+        # Set grid_propagate to False to allow w-by-h buttons resizing later
+        frame_canvas.grid_propagate(False)
+        canvas = tk.Canvas(frame_canvas)
+        canvas.grid(row=1, column=0, sticky="news")
+
+        # Link a scrollbar to the canvas
+        vsb = tk.Scrollbar(frame_canvas, orient="horizontal", command=canvas.xview)
+        vsb.grid(row=0, column=0, sticky='ns')
+        canvas.configure(xscrollcommand=vsb.set)
+        
+        frame_buttons = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=frame_buttons, anchor='nw')
+        
+        # generate the list of check buttons
+        r = 0
+        c = 0
+        indx = 0
+        features_list = list()
+        # Make one row
+        for feature in texts:
+            features_list.append(Checkbutton(frame_buttons,text=feature,variable=tf[indx]))
+            features_list[indx].grid(row=r, column=c, sticky='news')
+            indx = indx + 1
+            c = c+1
+
+        # resize buttons and find width and height of this canvas
+        frame_buttons.update_idletasks()        
+        firstWcolumns_width = sum([features_list[j].winfo_width() for j in range(0, w)])
+        firstHrows_height = sum([features_list[i*w].winfo_height() for i in range(0, h)])
+
+        frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
+                        height=firstHrows_height)
+        canvas.config(scrollregion=canvas.bbox("all"))
+        vsb.width = (100)
+        canvases = list()
+        canvases.append(frame_canvas)
+        canvases.append(canvas)
+        canvases.append(frame_buttons)
+        return (canvases)
     
     # Method to determine if a value is a number
     #
@@ -234,7 +351,7 @@ class GUI:
         
         gen_widgets = [0]*7
         # input features, widget 0
-        gen_widgets[0] = self.gen_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["input_features"],4,5)
+        gen_widgets[0] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["input_features"],4,5)
         gen_widgets[0].grid_remove()
         # target feature choice, widget 1
         gen_widgets[1] = ttk.Combobox(genframe, values=self.vars["headers"])
@@ -251,7 +368,7 @@ class GUI:
             c = c + 1   
         gen_widgets[3] = metric_checkbuttons
         # not_input_features, widget 4
-        gen_widgets[4] = self.gen_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["not_input_features"],4,5)
+        gen_widgets[4] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["not_input_features"],4,5)
         gen_widgets[4].grid_remove()
         # grouping_feature, widget 5
         gen_widgets[5] = ttk.Combobox(genframe, values=self.vars["headers"])
@@ -259,7 +376,7 @@ class GUI:
         if (indx != -1):
             gen_widgets[5].current(indx)
         # validation_columns_canvas, widget 6
-        gen_widgets[6] = self.gen_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["validation_columns"],4,5)
+        gen_widgets[6] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["validation_columns"],4,5)
         gen_widgets[6].grid_remove()
         
         # create 0 array to see if widgets active
@@ -532,8 +649,68 @@ class GUI:
     
     # This method will allow a user to choose feature normalization options
     def fn_btn(self):
-        print("todo")
+        # create new window
+        fn_root = Toplevel()
+        fnframe = tk.Frame(fn_root)
+        fnframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        fnframe.columnconfigure(2, weight = 1)
+        fnframe.rowconfigure(0, weight = 1)
+        fnframe.pack(pady = 100, padx = 100)
     
+        # make a list of fg checkbuttons
+        fn_checkbuttons = list()
+        indx = 0
+        fg_label = Label(fnframe, text="Feature Normalization Methods")
+        fg_label.grid(row=1, column=0)
+        for i in self.fn_vars:
+            fn_checkbuttons.append(Checkbutton(fnframe,text=i,variable=self.vars["FeatureNormalization"][indx]))
+            fn_checkbuttons[indx].grid(row = 1, column = indx+1)
+            indx = indx + 1
+        
+        user_choices = self.generate_user_options(fnframe,2,1,self.fn_vars,None)
+        
+        # Add the other options
+        #exit button to save choices
+        def exit_btn():
+            for key in self.fn_vars:
+                for key2 in self.fn_vars[key] or []:
+                    if (isinstance(self.fn_vars[key][key2],list) or isinstance(self.fn_vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.is_number(self.fn_vars[key][key2]) or isinstance(self.fn_vars[key][key2],str)):
+                        # manually check to see if the value should be a number
+                        if (key2 == "mean" or key2 == "stdev" or key2 == "n_quantiles" or key2 == "norm" or key2 == "threshold"):
+                            if (self.is_number(user_choices[key+key2].get())):
+                                self.fn_vars[key][key2] = user_choices[key+key2].get()
+                        else:
+                            self.fn_vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            fn_root.destroy()
+            fn_root.update()
+            
+        save_b = tk.Button(fnframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.grid(row=0, column=0)
+    
+    # This method will allow a user to select the models
+    def model_btn(self):
+        # create new window
+        model_root = Toplevel()
+        modelframe = tk.Frame(model_root)
+        modelframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        modelframe.columnconfigure(2, weight = 1)
+        modelframe.rowconfigure(0, weight = 1)
+        modelframe.pack(pady = 100, padx = 100)    
+        
+        scroll_canvas = self.gen_x_scroll_canvas(modelframe,1,1,self.model_vars,self.vars["models"],5,1)
+        scroll_canvas[0].grid_propagate(True)
+        user_options = self.generate_user_options(scroll_canvas[2],1,0,self.model_vars, None)
+        
+    # This method will allow a user to perform feature selection
+    def fs_btn(self):
+        print("todo")
     # Make button to load csv file headers and location
     def load_csv(self):
         csv_filename = fd.askopenfilename()
@@ -636,5 +813,15 @@ gen_b = tk.Button(mainframe,
                    text="Feature Normalization", 
                    command=lambda : gui.fn_btn())
 gen_b.grid(row=5, column=0)
+
+gen_b = tk.Button(mainframe, 
+                   text="Model Selection", 
+                   command=lambda : gui.model_btn())
+gen_b.grid(row=6, column=0)
+
+gen_b = tk.Button(mainframe, 
+                   text="Feature Selection", 
+                   command=lambda : gui.fs_btn())
+gen_b.grid(row=7, column=0)
 
 root.mainloop()
