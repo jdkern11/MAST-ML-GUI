@@ -1,11 +1,13 @@
 from tkinter import *
 import tkinter as tk
 from tkinter import ttk
-import tkinter.filedialog as fd
 import pandas as pd
 import math
 import os
 import time
+from classes.LearningCurve import LearningCurve as LC
+from classes.DataSplits import DataSplits as DS
+import tkinter.filedialog as fd
 
 #--------------------------------------------------------
 # Create a Graphic User Interface for MAST-ML
@@ -23,7 +25,7 @@ class GUI:
                      "not_input_features": None, "grouping_feature": None, "validation_columns": None,
                      "cleaning_method": None, "imputation_strategy": None, "clustering": None, 
                      "FeatureGeneration": None, "composition_feature": None, "FeatureNormalization": None,
-                     "models": None}
+                     "models": None, "ds": None}
                      
         # General variable creations
         self.metrics = ['root_mean_squared_error', 'mean_absolute_error']                   
@@ -104,6 +106,13 @@ class GUI:
         for i in range(0,len(self.fn_vars)):
             fn.append(IntVar())
         self.vars["FeatureNormalization"] = fn
+        self.ds = DS()
+        
+        dsl = list()
+        for i in range(0,len(self.ds.vars)):
+            dsl.append(IntVar())
+        self.vars["ds"] = dsl
+        
         
         # Make combolists for these variables
         self.model_vars = {"AdaBoostClassifier": { "n_estimators" : 50, "learning_rate" : 1.0},
@@ -209,24 +218,27 @@ class GUI:
         canvas.config(scrollregion=canvas.bbox("all"))
         return (frame_canvas)
         
-        
-    def gen_x_scroll_canvas(self,frame,gr,gc,texts,tf,w,h):
+    # Need to figure out what is wrong with this. I did a hardcode fix, but would prefer it to work fully
+    def gen_x_scroll_canvas(self,frame,gr,gc,texts,tf,w,h,pad):
         frame_canvas = tk.Frame(frame)
-        frame_canvas.grid(row=gr, column=gc, pady=(w, 0), sticky='nw')
-        frame_canvas.grid_rowconfigure(0, weight=1)
-        frame_canvas.grid_columnconfigure(0, weight=1)
+        frame_canvas.pack(side=BOTTOM)
+        #frame_canvas.grid(row=gr, column=gc, pady=(w, 0), sticky='nw')
+        #frame_canvas.grid_rowconfigure(0, weight=1)
+        #frame_canvas.grid_columnconfigure(0, weight=1)
         # Set grid_propagate to False to allow w-by-h buttons resizing later
-        frame_canvas.grid_propagate(False)
+        #frame_canvas.grid_propagate(False)
         canvas = tk.Canvas(frame_canvas)
-        canvas.grid(row=1, column=0, sticky="news")
+        #canvas.grid(row=1, column=0, sticky="news")
+        canvas.pack(side=BOTTOM,fill=BOTH,expand=True)
 
         # Link a scrollbar to the canvas
-        vsb = tk.Scrollbar(frame_canvas, orient="horizontal", command=canvas.xview)
-        vsb.grid(row=0, column=0, sticky='ns')
+        vsb = tk.Scrollbar(frame, orient="horizontal", command=canvas.xview)
+        #vsb.grid(row=0, column=0, sticky='ns')
+        vsb.pack(side=TOP,fill=BOTH)
         canvas.configure(xscrollcommand=vsb.set)
         
         frame_buttons = tk.Frame(canvas)
-        canvas.create_window((0, 0), window=frame_buttons, anchor='nw')
+        canvas.create_window((4, 4), window=frame_buttons, anchor='nw')
         
         # generate the list of check buttons
         r = 0
@@ -236,19 +248,13 @@ class GUI:
         # Make one row
         for feature in texts:
             features_list.append(Checkbutton(frame_buttons,text=feature,variable=tf[indx]))
-            features_list[indx].grid(row=r, column=c, sticky='news')
+            features_list[indx].grid(row=r, column=c)
             indx = indx + 1
             c = c+1
-
-        # resize buttons and find width and height of this canvas
-        frame_buttons.update_idletasks()        
-        firstWcolumns_width = sum([features_list[j].winfo_width() for j in range(0, w)])
-        firstHrows_height = sum([features_list[i*w].winfo_height() for i in range(0, h)])
-
-        frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
-                        height=firstHrows_height)
-        canvas.config(scrollregion=canvas.bbox("all"))
-        vsb.width = (100)
+        # resize buttons
+        frame_buttons.update_idletasks()
+        #canvas.config(scrollregion=canvas.bbox("all"))
+        canvas.config(scrollregion=(4,4,frame_buttons.winfo_reqwidth()+pad,50))
         canvases = list()
         canvases.append(frame_canvas)
         canvases.append(canvas)
@@ -265,6 +271,17 @@ class GUI:
         except ValueError:
             return False
     
+    # This method returns the current value of a combobox. Returns -1 if no value found
+    #
+    # variables: list (list of values to search through), value (value being searched for)
+    def find_combobox_indx(self,list,value):
+        indx = 0
+        for i in list:
+            if (i == value):
+                return (indx)
+            indx = indx + 1  
+        return (-1)
+        
     # Method to generate and return list of various tkinter user options
     #
     # variables:frame, sr (start row), sc (start column), vars (variables to be generated) 
@@ -277,8 +294,25 @@ class GUI:
             r = sr
             # or [] gets rid of NoneType not iterable exception
             for key2 in vars[key] or []:
+                #pass if none and no combbox available
+                if (vars[key][key2] == None and combobox_vars == None):
+                    pass
+                    
+                # add combobox
+                elif (key2[-2:] == 'CB'):
+                    # -2: to ignore the CB I added as a marker for combobox variables
+                    labels.append(Label(frame,text=key2[:-2]))
+                    labels[indx].grid(row=r,column=c)
+                    r = r+1
+                    vars_dict[(key+key2)] = ttk.Combobox(frame, values=combobox_vars[(key+key2)])
+                    combo_indx = self.find_combobox_indx(combobox_vars[(key+key2)], vars[key][key2])
+                    if (combo_indx != -1):
+                        vars_dict[(key+key2)].current(combo_indx)
+                    vars_dict[(key+key2)].grid(row=r,column=c)
+                    r = r+1
+                    
                 # if it is a list, it will be a checkbox type
-                if(isinstance(vars[key][key2], list)):
+                elif(isinstance(vars[key][key2], list)):
                     labels.append(Label(frame,text=key2))
                     labels[indx].grid(row=r,column=c)
                     r = r+1
@@ -291,22 +325,6 @@ class GUI:
                         r = r + 1
                         indx2 = indx2+1
                     vars_dict[(key+key2)] = temp
-                # TODO add combobox for option if it is an option that has a discrete number of string options
-                elif (combobox_vars != None):
-                    if((key+key2) in combobox_vars.keys()):
-                        labels.append(Label(frame,text=key2))
-                        labels[indx].grid(row=r,column=c)
-                        r = r+1
-                        indx = indx+1
-                        print("todo")
-                        """
-                        c_vars_dict[(key+key2)] = ttk.Combobox(clusteringframe, values=self.c_vars_combobox_options[(key+key2)])
-                        combobox_keys.append(key+key2)
-                        indx3 = self.find_combobox_indx(self.c_vars_combobox_options[(key+key2)],self.c_vars[key][key2])
-                        if (indx3 != -1):
-                            c_vars_dict[(key+key2)].current(indx3)
-                        c_vars_dict[(key+key2)].grid(row=r+1,column=c)
-                        """
                       
                 elif(isinstance(vars[key][key2], IntVar)):
                     vars_dict[(key+key2)] = Checkbutton(frame,text=key2,variable=vars[key][key2])
@@ -325,17 +343,6 @@ class GUI:
                     r = r + 1                
             c = c + 1
         return vars_dict
-    
-    # This method returns the current value of a combobox. Returns -1 if no value found
-    #
-    # variables: list (list of values to search through), value (value being searched for)
-    def find_combobox_indx(self,list,value):
-        indx = 0
-        for i in list:
-            if (i == value):
-                return (indx)
-            indx = indx + 1  
-        return (-1)
         
     
     # This method creates a new window to determine the general settings of the conf file
@@ -700,19 +707,73 @@ class GUI:
         model_root = Toplevel()
         modelframe = tk.Frame(model_root)
         modelframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        modelframe.columnconfigure(2, weight = 1)
+        modelframe.columnconfigure(0, weight = 1)
         modelframe.rowconfigure(0, weight = 1)
-        modelframe.pack(pady = 100, padx = 100)    
+        modelframe.pack(pady = 200, padx = 200)    
         
-        scroll_canvas = self.gen_x_scroll_canvas(modelframe,1,1,self.model_vars,self.vars["models"],5,1)
+        scroll_canvas = self.gen_x_scroll_canvas(modelframe,1,1,self.model_vars,self.vars["models"],5,1,900)
         scroll_canvas[0].grid_propagate(True)
-        user_options = self.generate_user_options(scroll_canvas[2],1,0,self.model_vars, None)
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.model_vars, None)
+        #scroll_canvas[1].config(scrollregion=scroll_canvas[1].bbox("all"))
         
+        #exit button to save choices
+        def exit_btn():
+            for key in self.model_vars:
+                for key2 in self.model_vars[key] or []:
+                    if (isinstance(self.model_vars[key][key2],list) or isinstance(self.model_vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.is_number(self.model_vars[key][key2]) or isinstance(self.model_vars[key][key2],str)):
+                        self.model_vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            model_root.destroy()
+            model_root.update()
+            
+        save_b = tk.Button(modelframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.pack(side=TOP)
+        
+    # This method will allow a user to select the datasplits
+    def ds_btn(self):
+        # create new window
+        ds_root = Toplevel()
+        dsframe = tk.Frame(ds_root)
+        dsframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        dsframe.columnconfigure(0, weight = 1)
+        dsframe.rowconfigure(0, weight = 1)
+        dsframe.pack(pady = 200, padx = 200)   
+
+        scroll_canvas = self.gen_x_scroll_canvas(dsframe,1,1,self.ds.vars,self.vars["ds"],5,1,300)  
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.ds.vars, self.ds.combobox_options)        
+
+        #exit button to save choices
+        def exit_btn():
+            for key in self.ds.vars:
+                for key2 in self.ds.vars[key] or []:
+                    if (isinstance(self.ds.vars[key][key2],list) or isinstance(self.ds.vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.ds.vars[key][key2] == None or self.is_number(self.ds.vars[key][key2]) or isinstance(self.ds.vars[key][key2],str)):
+                        self.ds.vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            ds_root.destroy()
+            ds_root.update()
+            
+        save_b = tk.Button(dsframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.pack(side=TOP)    
+    
+    
     # This method will allow a user to perform feature selection
     def fs_btn(self):
         print("todo")
     # Make button to load csv file headers and location
-    def load_csv(self):
+    def load_csv(self, root):
+        root.update()
         csv_filename = fd.askopenfilename()
         self.vars["csv_loc"] = csv_filename
         df = pd.read_csv(csv_filename)
@@ -732,7 +793,8 @@ class GUI:
             
         self.vars["input_features"] =  i_f
         self.vars["not_input_features"] = n_i_f
-        self.vars["validation_columns"] = v_c
+        self.vars["validation_columns"] = v_c       
+        self.ds.change_combobox(headers)
 
 
 
@@ -772,7 +834,7 @@ quit_b.grid(row=0, column=0)
 # load csv files to obtain headers
 load_data_b = tk.Button(mainframe,
                    text="Load .csv file",
-                   command=lambda : gui.load_csv())
+                   command=lambda : gui.load_csv(root))
 load_data_b.grid(row=0, column=1)
 
 # will load conf files
@@ -820,8 +882,13 @@ gen_b = tk.Button(mainframe,
 gen_b.grid(row=6, column=0)
 
 gen_b = tk.Button(mainframe, 
+                   text="Data Splits", 
+                   command=lambda : gui.ds_btn())
+gen_b.grid(row=7, column=0)
+
+gen_b = tk.Button(mainframe, 
                    text="Feature Selection", 
                    command=lambda : gui.fs_btn())
-gen_b.grid(row=7, column=0)
+gen_b.grid(row=8, column=0)
 
 root.mainloop()
