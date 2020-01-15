@@ -18,6 +18,6 @@ class DataSplits:
                     "StratifiedShuffleSplit": { "n_splits" : 10},
                     "LeaveOneGroupOut": { "grouping_columnCB" : None}}
                     
-    def change_combobox(self, new_cb):
-        self.combobox_options["LeaveOneGroupOutgrouping_columnCB"] = new_cb
+    def combobox_initialization(self, names):
+        self.combobox_options["LeaveOneGroupOutgrouping_columnCB"] = names
                     

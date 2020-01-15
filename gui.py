@@ -7,7 +7,16 @@ import os
 import time
 from classes.LearningCurve import LearningCurve as LC
 from classes.DataSplits import DataSplits as DS
+from classes.DataCleaning import DataCleaning as DC
+from classes.Clustering import Clustering as Cl
+from classes.FeatureSelection import FeatureSelection as FS
+from classes.FeatureGeneration import FeatureGeneration as FG
+from classes.FeatureNormalization import FeatureNormalization as FN
+from classes.PlotSettings import PlotSettings as PS
+from classes.GeneralSetup import GeneralSetup as GS
+from classes.Models import Models as Mo
 import tkinter.filedialog as fd
+from sys import platform
 
 #--------------------------------------------------------
 # Create a Graphic User Interface for MAST-ML
@@ -20,154 +29,81 @@ import tkinter.filedialog as fd
 class GUI:
     def __init__(self):
         # Make lists of variables that will be altered based on user choices
-        self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": os.getcwd(),
-                     "randomizer": IntVar(), "input_features": None, "target_feature": None, "metrics": None, 
-                     "not_input_features": None, "grouping_feature": None, "validation_columns": None,
-                     "cleaning_method": None, "imputation_strategy": None, "clustering": None, 
-                     "FeatureGeneration": None, "composition_feature": None, "FeatureNormalization": None,
-                     "models": None, "ds": None}
+        self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": os.getcwd(), "driver": None,
+                     "cl": None, "fg": None, "fn": None, "mo": None, "ds": None, "fs": None, "lc": None, "ps": None}
                      
         # General variable creations
-        self.metrics = ['root_mean_squared_error', 'mean_absolute_error']                   
-        met = list()
-        for i in range(0,2):
-            met.append(IntVar())
-        self.vars["metrics"] = met
+        # empty values will all be set to headers for easier saving later one
+        self.input_features = None
+        self.not_input_features = None
+        self.validation_columns = None
+        self.gs = GS()
+        self.metrics = self.gs.metrics
         
         
         # Cleaning methods variables
-        self.cleaning_methods = ['remove', 'imputation', 'ppca']
-        self.imputation_strategy = ['mean','median']
+        self.dc = DC()
+        self.cleaning_methods = self.dc.cleaning_methods
+        self.imputation_strategy = self.dc.imputation_strategy
         
         # Clustering variables
-        self.clustering = ['AffinityPropagation','AgglomerativeClustering','Birch','DBSCAN',
-                           'KMeans','MiniBatchKMeans','MeanShift','SpectralClustering']                   
-        # make a separate list of cluster variables
-        # TODO find what other strings possible
-        self.c_vars = {"headers": self.clustering, "AffinityPropagation": {'damping': 0.5, 'max_iter': 200, 'convergence_iter': 15, 'affinity': 'euclidean'}, 
-                      "AgglomerativeClustering": {'n_clusters': 2, 'affinity': 'euclidean', 'compute_full_tree': 'auto', 'linkage': 'ward'},
-                      "Birch": {'threshold': 0.5, 'branching_factor': 50, 'n_clusters': 3}, 
-                      "DBSCAN": {'eps': 0.5, 'min_samples':5, 'metric': 'euclidean', 'algorithm': 'auto', 'leaf_size': 30}, 
-                      "KMeans": {'n_clusters': 8, 'n_init': 10, 'max_iter': 300, 'tol': 0.0001},
-                      "MiniBatchKMeans": {'n_clusters': 8, 'max_iter': 100, 'batch_size': 100}, 
-                      "MeanShift": None,
-                      "SpectralClustering": {'n_clusters': 8, 'n_init': 10, 'gamma': 1.0, 'affinity': 'rbf'}}
-        # create list of possible values string choices in clustering
-        self.affinity_propagation_affinity = ['euclidean','precomputed']
-        # if ward, must be euclidean
-        self.agglomerative_clustering_affinity = ['euclidean', 'l1', 'l2', 'manhattan', 'cosine', 'precomputed']
-        self.compute_full_tree = ['auto', 'True', 'False']
-        self.linkage = ['ward', 'complete', 'average', 'single']
-        # TODO, add options for this. There are so thinks to note for it
-        self.DBSCAN_metric = ['euclidean']
-        self.DBSCAN_algorithm = ['auto','ball_tree','kd_tree','brute']
-        # TODO there may be other pairwise kernels that can be added
-        self.spectral_clustering_affinity = ['rbf','nearest_neighbors','precomputed','precomputed_nearest_neighbors']
-        self.c_vars_combobox_options = {"AffinityPropagationaffinity":self.affinity_propagation_affinity,
-                                        "AgglomerativeClusteringaffinity":self.agglomerative_clustering_affinity,
-                                        "AgglomerativeClusteringcompute_full_tree":self.compute_full_tree,
-                                        "AgglomerativeClusteringlinkage":self.linkage,
-                                        "DBSCANmetric":self.DBSCAN_metric,
-                                        "DBSCANalgorithm":self.DBSCAN_algorithm,
-                                        "SpectralClusteringaffinity":self.spectral_clustering_affinity}
-        # Cluster checkbox list
+        self.cl = Cl()
         cluster = list()
-        for i in range(0,len(self.clustering)):
+        for key in self.cl.vars:
             cluster.append(IntVar())
-        self.vars["clustering"] = cluster
+        self.vars["cl"] = cluster
                                         
-        # Make list for feature generation vars     
-        self.feature_types = ["composition_avg","arithmetic_avg","max","min","difference","elements"]
-        feature_types_binary = list()
-        for i in self.feature_types:
-            feature_types_binary.append(IntVar())
-        self.fg_vars = {"Magpie": {"feature_types": feature_types_binary},
-                        "MaterialsProject":{"api_key": "fill in"},
-                        "Citrine": {"api_key": "fill in"},
-                        "ContainsElement": {"all_elements": IntVar(), "element": "Ex: Al", "new_name": "Ex: has_Al"},
-                        "PolynomialFeatures": {"degree": 2, "interaction_only": IntVar(), "include_bias": IntVar()}}
+        # Make list for feature generation vars  
+        self.fg = FG()
+        self.feature_types = self.fg.feature_types
         # feature generation checkbox lists
-        fg = list()
-        for i in range(0,len(self.fg_vars)):
-            fg.append(IntVar())
-        self.vars["FeatureGeneration"] = fg 
+        fgl = list()
+        for key in self.fg.vars:
+            fgl.append(IntVar())
+        self.vars["fg"] = fgl
         
         # Make list of feature normalizationvars
         # Add combolist for output_distribution later probably
-        self.fn_vars = {"Binarizer": {"threshold": 0.0},
-                        "MaxAbsScaler": None,
-                        "MinMaxScaler": None,
-                        "Normalizer": {"norm": 12},
-                        "QuantileTransformer": {"n_quantiles": 1000, "output_distribution": "uniform"},
-                        "RobustScaler": {"with_centering": IntVar(), "with_scaling": IntVar()},
-                        "StandardScaler": None,
-                        "MeanStdevScaler": {"mean": 0, "stdev": 1}}
-        fn = list()
-        for i in range(0,len(self.fn_vars)):
-            fn.append(IntVar())
-        self.vars["FeatureNormalization"] = fn
-        self.ds = DS()
+        self.fn = FN()
+        fnl = list()
+        for i in range(0,len(self.fn.vars)):
+            fnl.append(IntVar())
+        self.vars["fn"] = fnl        
         
+        # Create an DataSplits instance and make checkbox vars to choose algos later
+        self.ds = DS()
         dsl = list()
         for i in range(0,len(self.ds.vars)):
             dsl.append(IntVar())
         self.vars["ds"] = dsl
         
+        # Create an FeatureSelection instance and make checkbox vars to choose algos later 
+        self.fs = FS()
+        fsl = list()
+        for i in range(0,len(self.fs.vars)):
+            fsl.append(IntVar())
+        self.vars["fs"] = fsl
         
-        # Make combolists for these variables
-        self.model_vars = {"AdaBoostClassifier": { "n_estimators" : 50, "learning_rate" : 1.0},
-                           "AdaBoostRegressor": { "n_estimators" : 50, "learning_rate" : 1.0},
-                           "BaggingClassifier": { "n_estimators" : 50, "maxamples" : 1.0, "max_features" : 1.0},
-                           "BaggingRegressor": { "n_estimators" : 50, "maxamples" : 1.0, "max_features" : 1.0},
-                           "ExtraTreesClassifier": { "n_estimators" : 50, "criterion" : "gini", "minamples_split" : 2, "min_samples_leaf" : 1},
-                           "ExtraTreesRegressor": { "n_estimators" : 50, "criterion" : "mse", "minamples_split" : 2, "min_samples_leaf" : 1},
-                           "GradientBoostingClassifier": { "loss" : "deviance", "learning_rate" : 1.0, "n_estimators" : 100, "subsample" : 1.0, "criterion" : "friedman_mse", "minamples_split" : 2, "min_samples_leaf" : 1},
-                           "GradientBoostingRegressor": { "loss" : "ls", "learning_rate" : 0.1, "n_estimators" : 100, "subsample" : 1.0, "criterion" : "friedman_mse", "minamples_split" : 2, "min_samples_leaf" : 1},
-                           "RandomForestClassifier": { "n_estimators" : 10, "criterion" : "gini", "minamples_leaf" : 1, "min_samples_split" : 2},
-                           "RandomForestRegressor": { "n_estimators" : 10, "criterion" : "mse", "minamples_leaf" : 1, "min_samples_split" : 2},
-                           "KernelRidge": { "alpha" : 1, "kernel" : "linear"},
-                           "KernelRidgeelectMASTML": { "alpha" : 1, "kernel" : "linear"},
-                           "KernelRidge_learn": { "alpha" : 1, "kernel" : "linear"},
-                           "ARDRegression": { "n_iter" : 300},
-                           "BayesianRidge": { "n_iter" : 300},
-                           "ElasticNet": { "alpha" : 1.0},
-                           "HuberRegressor": { "epsilon" : 1.35, "max_iter" : 100},
-                           "Lars": None,
-                           "Lasso": { "alpha" : 1.0},
-                           "LassoLars": { "alpha" : 1.0, "max_iter" : 500},
-                           "LassoLarsIC": { "criterion" : "aic", "max_iter" : 500},
-                           "LinearRegression": None,
-                           "LogisticRegression": { "penalty" : 12, "C" : 1.0},
-                           "Perceptron": { "alpha" : 0.0001},
-                           "Ridge": { "alpha" : 1.0},
-                           "RidgeClassifier": { "alpha" : 1.0},
-                           "SGDClassifier": { "loss" : "hinge", "penalty" : 12, "alpha" : 0.0001},
-                           "SGDRegressor": { "loss" : "squared_loss", "penalty" : 12, "alpha" : 0.0001},
-                           "MLPClassifier": { "hidden_layerizes" : 100, "activation" : "relu", "solver" : "adam", "alpha" : 0.0001, "batch_size" : "auto", "learning_rate" : "constant"},
-                           "MLPRegressor": { "hidden_layerizes" : 100, "activation" : "relu", "solver" : "adam", "alpha" : 0.0001, "batch_size" : "auto", "learning_rate" : "constant"},
-                           "LinearSVC": { "penalty" : 12, "loss" : "squared_hinge", "tol" : 0.0001, "C" : 1.0},
-                           "LinearSVR": { "epsilon" : 0.1, "loss" : "epsilon_insensitive", "tol" : 0.0001, "C" : 1.0},
-                           "NuSVC": { "nu" : 0.5, "kernel" : "rbf", "degree" : 3},
-                           "NuSVR": { "nu" : 0.5, "C" : 1.0, "kernel" : "rbf", "degree" : 3},
-                           "SVC": { "C" : 1.0, "kernel" : "rbf", "degree" : 3},
-                           "SVR": { "C" : 1.0, "kernel" : "rbf", "degree" : 3},
-                           "DecisionTreeClassifier": { "criterion" : "gini", "splitter" : "best", "minamples_split" : 2, "min_samples_leaf" : 1},
-                           "DecisionTreeRegressor": { "criterion" : "mse", "splitter" : "best", "minamples_split" : 2, "min_samples_leaf" : 1},
-                           "ExtraTreeClassifier": { "criterion" : "gini", "splitter" : "random", "minamples_split" : 2, "min_samples_leaf" : 1},
-                           "ExtraTreeRegressor": { "criterion" : "mse", "splitter" : "random", "minamples_split" : 2, "min_samples_leaf" : 1}}
+        # Create an LearningCurve instance and make checkbox vars to choose algos later 
+        self.lc = LC()
+        lcl = list()
+        for i in range(0,len(self.lc.vars)):
+            lcl.append(IntVar())
+        self.vars["lc"] = lcl
+        
+        # Create an PlotSettings instance and make checkbox vars to choose algos later 
+        self.ps = PS()
+        psl = list()
+        for i in range(0,len(self.ps.vars)):
+            psl.append(IntVar())
+        self.vars["ps"] = psl
+        
+        
+        self.mo = Mo()
         models = list()
-        for i in range(0,len(self.model_vars)):
+        for i in range(0,len(self.mo.vars)):
             models.append(IntVar())
-        self.vars["models"] = models
-        
-        # Todo: Finish later
-        self.fs_vars = {"GenericUnivariateSelect": None,
-                        "SelectPercentile": None,
-                        "SelectKBest": None,
-                        "SelectFpr": None,
-                        "SelectFdr": None,
-                        "SelectFwe":None,
-                        "RFE": None}
+        self.vars["mo"] = models
                             
         
     
@@ -276,7 +212,7 @@ class GUI:
     # variables: list (list of values to search through), value (value being searched for)
     def find_combobox_indx(self,list,value):
         indx = 0
-        for i in list:
+        for i in list or []:
             if (i == value):
                 return (indx)
             indx = indx + 1  
@@ -303,6 +239,7 @@ class GUI:
                     # -2: to ignore the CB I added as a marker for combobox variables
                     labels.append(Label(frame,text=key2[:-2]))
                     labels[indx].grid(row=r,column=c)
+                    indx = indx + 1
                     r = r+1
                     vars_dict[(key+key2)] = ttk.Combobox(frame, values=combobox_vars[(key+key2)])
                     combo_indx = self.find_combobox_indx(combobox_vars[(key+key2)], vars[key][key2])
@@ -331,7 +268,7 @@ class GUI:
                     vars_dict[(key+key2)].grid(row=r, column=c)
                     r = r+1
                     
-                # make changable entry if a number value or if a string == ---
+                # make changable entry if a number value or if a string
                 elif(self.is_number(vars[key][key2]) or isinstance(vars[key][key2], str)):
                     labels.append(Label(frame,text=key2))
                     labels[indx].grid(row=r,column=c)
@@ -358,32 +295,32 @@ class GUI:
         
         gen_widgets = [0]*7
         # input features, widget 0
-        gen_widgets[0] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["input_features"],4,5)
+        gen_widgets[0] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.gs.vars["input_features"],4,5)
         gen_widgets[0].grid_remove()
         # target feature choice, widget 1
         gen_widgets[1] = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx(self.vars["headers"],self.vars["target_feature"])
+        indx = self.find_combobox_indx(self.vars["headers"],self.gs.vars["target_feature"])
         if (indx != -1):
             gen_widgets[1].current(indx)
         # randomizer choice, widget 2
-        gen_widgets[2] = Checkbutton(genframe,variable=self.vars["randomizer"],anchor='w')
+        gen_widgets[2] = Checkbutton(genframe,variable=self.gs.vars["randomizer"],anchor='w')
         # metrics choices, widget 3
         metric_checkbuttons = list()
         c = 1
-        for i in self.metrics:
-            metric_checkbuttons.append(Checkbutton(genframe,text=i,variable=self.vars["metrics"][c-1]))
+        for i in self.gs.metrics:
+            metric_checkbuttons.append(Checkbutton(genframe,text=i,variable=self.gs.vars["metrics"][c-1]))
             c = c + 1   
         gen_widgets[3] = metric_checkbuttons
         # not_input_features, widget 4
-        gen_widgets[4] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["not_input_features"],4,5)
+        gen_widgets[4] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.gs.vars["not_input_features"],4,5)
         gen_widgets[4].grid_remove()
         # grouping_feature, widget 5
         gen_widgets[5] = ttk.Combobox(genframe, values=self.vars["headers"])
-        indx = self.find_combobox_indx(self.vars["headers"],self.vars["grouping_feature"])
+        indx = self.find_combobox_indx(self.vars["headers"],self.gs.vars["grouping_feature"])
         if (indx != -1):
             gen_widgets[5].current(indx)
         # validation_columns_canvas, widget 6
-        gen_widgets[6] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.vars["validation_columns"],4,5)
+        gen_widgets[6] = self.gen_y_scroll_canvas(genframe,2,1,self.vars["headers"],self.gs.vars["validation_columns"],4,5)
         gen_widgets[6].grid_remove()
         
         # create 0 array to see if widgets active
@@ -440,8 +377,8 @@ class GUI:
             active[6] = 1
             
         def exit_btn():
-            self.vars["target_feature"] = gen_widgets[1].get()
-            self.vars["grouping_feature"] = gen_widgets[5].get()
+            self.gs.vars["target_feature"] = gen_widgets[1].get()
+            self.gs.vars["grouping_feature"] = gen_widgets[5].get()
             gen_root.destroy()
             gen_root.update()
         
@@ -488,7 +425,7 @@ class GUI:
         
         # imputation strategy widget, widget 1
         data_clean_widgets[1] = ttk.Combobox(data_cleanframe, values=self.imputation_strategy)
-        indx = self.find_combobox_indx(self.imputation_strategy,self.vars["imputation_strategy"])
+        indx = self.find_combobox_indx(self.imputation_strategy,self.dc.vars["imputation_strategy"])
         if (indx != -1):
             data_clean_widgets[1].current(indx)
                         
@@ -503,9 +440,9 @@ class GUI:
                 data_clean_l[1].grid(row=2, column=0)
         
         # cleaning method widget, widget 0
-        data_clean_widgets[0] = ttk.Combobox(data_cleanframe,values=self.cleaning_methods)
+        data_clean_widgets[0] = ttk.Combobox(data_cleanframe,values=self.dc.cleaning_methods)
         data_clean_widgets[0].bind('<<ComboboxSelected>>', on_field_change)
-        indx = self.find_combobox_indx(self.cleaning_methods,self.vars["cleaning_method"])
+        indx = self.find_combobox_indx(self.cleaning_methods,self.dc.vars["cleaning_method"])
         if (indx != -1):
             data_clean_widgets[0].current(indx)
             if (indx == 1):
@@ -515,8 +452,8 @@ class GUI:
        
         # exit button to save choices
         def exit_btn():
-            self.vars["cleaning_method"] = data_clean_widgets[0].get()
-            self.vars["imputation_strategy"] = data_clean_widgets[1].get()
+            self.dc.vars["cleaning_method"] = data_clean_widgets[0].get()
+            self.dc.vars["imputation_strategy"] = data_clean_widgets[1].get()
             data_clean_root.destroy()
             data_clean_root.update()
             
@@ -537,59 +474,25 @@ class GUI:
         clusteringframe.pack(pady = 100, padx = 100)
         
         # make a list of clustering check buttons
-        c = 1
-        cluster_checkbuttons = list()
         indx = 0
-        indx2 = 0
-        cluster_labels = list()
-        combobox_keys = list()
-        c_vars_dict = {}
-        for x in self.clustering:
-            cluster_checkbuttons.append(Checkbutton(clusteringframe,text=x,variable=self.vars["clustering"][indx2]))
-            cluster_checkbuttons[indx2].grid(row=1,column=c)
-            indx2 = indx2 + 1
-            # Access the dictionaries in c_vars
-            for key in self.c_vars:
-                # if it is the current clustering option, add that options fields to the gui
-                if (key == x):
-                    r = 2
-                    # or [] gets rid of NoneType not iterable exception
-                    for key2 in self.c_vars[key] or []:
-                        # add labels
-                        cluster_labels.append(Label(clusteringframe,text=key2))
-                        cluster_labels[indx].grid(row=r,column=c)
-                        indx = indx + 1
-                        # make changable entry if a number value
-                        if(self.is_number(self.c_vars[key][key2])):
-                            c_vars_dict[(key+key2)] = Entry(clusteringframe)
-                            c_vars_dict[(key+key2)].insert(0,self.c_vars[key][key2])
-                            c_vars_dict[(key+key2)].grid(row=r+1,column=c)
-                        # add combobox for option if it is an option that has a discrete number of string options
-                        else:
-                            c_vars_dict[(key+key2)] = ttk.Combobox(clusteringframe, values=self.c_vars_combobox_options[(key+key2)])
-                            combobox_keys.append(key+key2)
-                            indx3 = self.find_combobox_indx(self.c_vars_combobox_options[(key+key2)],self.c_vars[key][key2])
-                            if (indx3 != -1):
-                                c_vars_dict[(key+key2)].current(indx3)
-                            c_vars_dict[(key+key2)].grid(row=r+1,column=c)
-                            
-                        r = r + 2                  
+        c = 0
+        for key in self.cl.vars:
+            Checkbutton(clusteringframe,text=key,variable=self.vars["cl"][indx]).grid(row=1,column=c)
+            indx = indx+1
             c = c + 1
-            
+        user_choices = self.generate_user_options(clusteringframe,2,0,self.cl.vars, self.cl.combobox_options) 
         #exit button to save choices
         def exit_btn():
             # save changes
-            for x in self.clustering:
-                for key in self.c_vars:
-                    if (key == x):
-                        for key2 in self.c_vars[key] or []:
-                            if (self.is_number(c_vars_dict[(key+key2)].get())):
-                                self.c_vars[key][key2] = c_vars_dict[(key+key2)].get()
-                            elif (key+key2) in combobox_keys:
-                                self.c_vars[key][key2] = c_vars_dict[(key+key2)].get()
-                            # this is a stipulation according to scikit-learn, so I will be nice an ensure it.
-                            if (key == 'AgglomerativeClustering' and key2 == 'linkage' and self.c_vars[key][key2] == 'ward'):
-                                self.c_vars[key]['affinity'] = 'euclidean'
+            for key in self.cl.vars:
+                for key2 in self.cl.vars[key] or []:
+                    if (self.is_number(user_choices[(key+key2)].get())):
+                        self.cl.vars[key][key2] = user_choices[(key+key2)].get()
+                    elif (key+key2) in self.cl.combobox_options:
+                        self.cl.vars[key][key2] = user_choices[(key+key2)].get()
+                    # this is a stipulation according to scikit-learn, so I will be nice an ensure it.
+                    if (key == 'AgglomerativeClustering' and key2 == 'linkage' and self.cl.vars[key][key2] == 'ward'):
+                        self.cl.vars[key]['affinity'] = 'euclidean'
             clustering_root.destroy()
             clustering_root.update()
             
@@ -610,40 +513,27 @@ class GUI:
         fgframe.pack(pady = 100, padx = 100)
         
         # make a list of fg checkbuttons
-        fg_checkbuttons = list()
         indx = 0
-        fg_label = Label(fgframe, text="Feature Generation Methods")
-        fg_label.grid(row=2, column=0)
-        for i in self.fg_vars:
-            fg_checkbuttons.append(Checkbutton(fgframe,text=i,variable=self.vars["FeatureGeneration"][indx]))
-            fg_checkbuttons[indx].grid(row = 2, column = indx+1)
+        fg_label = Label(fgframe, text="Feature Generation Methods").grid(row=2,column=0)
+        for i in self.fg.vars:
+            Checkbutton(fgframe,text=i,variable=self.vars["fg"][indx]).grid(row = 2, column = indx+1)
             indx = indx + 1
         
-        # Choose composition feature
-        cf = ttk.Combobox(fgframe, values=self.vars["headers"])
-        cf_label = Label(fgframe, text="Composition Feature")
-        cf_label.grid(row=1, column=0)
-        indx = self.find_combobox_indx(self.vars["headers"],self.vars["composition_feature"])
-        if (indx != -1):
-            cf.current(indx)
-        cf.grid(row=1, column = 1)
-        
-        user_choices = self.generate_user_options(fgframe,3,1,self.fg_vars, None)
+        user_choices = self.generate_user_options(fgframe,3,1,self.fg.vars, self.fg.combobox_options)
         # Add the other options
         #exit button to save choices
         def exit_btn():
-            self.vars['composition_feature'] = cf.get()
-            for key in self.fg_vars:
-                for key2 in self.fg_vars[key] or []:
-                    if (isinstance(self.fg_vars[key][key2],list) or isinstance(self.fg_vars[key][key2],IntVar)):
+            for key in self.fg.vars:
+                for key2 in self.fg.vars[key] or []:
+                    if (isinstance(self.fg.vars[key][key2],list) or isinstance(self.fg.vars[key][key2],IntVar)):
                         # do nothing if list
                         pass
-                    elif (self.is_number(self.fg_vars[key][key2]) or isinstance(self.fg_vars[key][key2],str)):
+                    elif (self.fg.vars[key][key2] == None or self.is_number(self.fg.vars[key][key2]) or isinstance(self.fg.vars[key][key2],str)):
                         if (key2 == "degree"):
                             if (self.is_number(user_choices[key+key2].get())):
-                                self.fg_vars[key][key2] = user_choices[key+key2].get()
+                                self.fg.vars[key][key2] = user_choices[key+key2].get()
                         else:
-                            self.fg_vars[key][key2] = user_choices[key+key2].get()
+                            self.fg.vars[key][key2] = user_choices[key+key2].get()
             # save changes
             fg_root.destroy()
             fg_root.update()
@@ -664,33 +554,33 @@ class GUI:
         fnframe.rowconfigure(0, weight = 1)
         fnframe.pack(pady = 100, padx = 100)
     
-        # make a list of fg checkbuttons
+        # make a list of fn checkbuttons
         fn_checkbuttons = list()
         indx = 0
         fg_label = Label(fnframe, text="Feature Normalization Methods")
         fg_label.grid(row=1, column=0)
-        for i in self.fn_vars:
-            fn_checkbuttons.append(Checkbutton(fnframe,text=i,variable=self.vars["FeatureNormalization"][indx]))
+        for i in self.fn.vars:
+            fn_checkbuttons.append(Checkbutton(fnframe,text=i,variable=self.vars["fn"][indx]))
             fn_checkbuttons[indx].grid(row = 1, column = indx+1)
             indx = indx + 1
         
-        user_choices = self.generate_user_options(fnframe,2,1,self.fn_vars,None)
+        user_choices = self.generate_user_options(fnframe,2,1,self.fn.vars,None)
         
         # Add the other options
         #exit button to save choices
         def exit_btn():
-            for key in self.fn_vars:
-                for key2 in self.fn_vars[key] or []:
-                    if (isinstance(self.fn_vars[key][key2],list) or isinstance(self.fn_vars[key][key2],IntVar)):
+            for key in self.fn.vars:
+                for key2 in self.fn.vars[key] or []:
+                    if (isinstance(self.fn.vars[key][key2],list) or isinstance(self.fn.vars[key][key2],IntVar)):
                         # do nothing if list
                         pass
-                    elif (self.is_number(self.fn_vars[key][key2]) or isinstance(self.fn_vars[key][key2],str)):
+                    elif (self.is_number(self.fn.vars[key][key2]) or isinstance(self.fn.vars[key][key2],str)):
                         # manually check to see if the value should be a number
                         if (key2 == "mean" or key2 == "stdev" or key2 == "n_quantiles" or key2 == "norm" or key2 == "threshold"):
                             if (self.is_number(user_choices[key+key2].get())):
-                                self.fn_vars[key][key2] = user_choices[key+key2].get()
+                                self.fn.vars[key][key2] = user_choices[key+key2].get()
                         else:
-                            self.fn_vars[key][key2] = user_choices[key+key2].get()
+                            self.fn.vars[key][key2] = user_choices[key+key2].get()
             # save changes
             fn_root.destroy()
             fn_root.update()
@@ -711,20 +601,24 @@ class GUI:
         modelframe.rowconfigure(0, weight = 1)
         modelframe.pack(pady = 200, padx = 200)    
         
-        scroll_canvas = self.gen_x_scroll_canvas(modelframe,1,1,self.model_vars,self.vars["models"],5,1,900)
+        scroll_canvas = self.gen_x_scroll_canvas(modelframe,1,1,self.mo.vars,self.vars["mo"],5,1,900)
         scroll_canvas[0].grid_propagate(True)
-        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.model_vars, None)
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.mo.vars, None)
         #scroll_canvas[1].config(scrollregion=scroll_canvas[1].bbox("all"))
         
         #exit button to save choices
         def exit_btn():
-            for key in self.model_vars:
-                for key2 in self.model_vars[key] or []:
-                    if (isinstance(self.model_vars[key][key2],list) or isinstance(self.model_vars[key][key2],IntVar)):
+            for key in self.mo.vars:
+                for key2 in self.mo.vars[key] or []:
+                    if (isinstance(self.mo.vars[key][key2],list) or isinstance(self.mo.vars[key][key2],IntVar)):
                         # do nothing if list
                         pass
-                    elif (self.is_number(self.model_vars[key][key2]) or isinstance(self.model_vars[key][key2],str)):
-                        self.model_vars[key][key2] = user_choices[key+key2].get()
+                    elif (self.is_number(self.mo.vars[key][key2]) or isinstance(self.mo.vars[key][key2],str)):
+                        self.mo.vars[key][key2] = user_choices[key+key2].get()
+            # Add models to feature selection options
+            self.fs.combobox_initialization("model",self.vars["mo"],self.mo.vars)
+            # Add models to learning curve options
+            self.lc.combobox_initialization("model",self.vars["mo"],self.mo.vars)
             # save changes
             model_root.destroy()
             model_root.update()
@@ -758,6 +652,10 @@ class GUI:
                     elif (self.ds.vars[key][key2] == None or self.is_number(self.ds.vars[key][key2]) or isinstance(self.ds.vars[key][key2],str)):
                         self.ds.vars[key][key2] = user_choices[key+key2].get()
             # save changes
+            # Add datasplits to feature selection options
+            self.fs.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
+            # Add datasplits to learning curve options
+            self.lc.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
             ds_root.destroy()
             ds_root.update()
             
@@ -770,7 +668,95 @@ class GUI:
     
     # This method will allow a user to perform feature selection
     def fs_btn(self):
-        print("todo")
+        # create new window
+        fs_root = Toplevel()
+        fsframe = tk.Frame(fs_root)
+        fsframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        fsframe.columnconfigure(0, weight = 1)
+        fsframe.rowconfigure(0, weight = 1)
+        fsframe.pack(pady = 200, padx = 200)   
+        
+        scroll_canvas = self.gen_x_scroll_canvas(fsframe,1,1,self.fs.vars,self.vars["fs"],5,1,300)  
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.fs.vars, self.fs.combobox_options)        
+
+        #exit button to save choices
+        def exit_btn():
+            for key in self.fs.vars:
+                for key2 in self.fs.vars[key] or []:
+                    if (isinstance(self.fs.vars[key][key2],list) or isinstance(self.fs.vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.fs.vars[key][key2] == None or self.is_number(self.fs.vars[key][key2]) or isinstance(self.fs.vars[key][key2],str)):
+                        self.fs.vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            # Add feature selection to learning curve options
+            self.lc.combobox_initialization("fs",self.vars["fs"],self.fs.vars)
+            fs_root.destroy()
+            fs_root.update()
+            
+        save_b = tk.Button(fsframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.pack(side=TOP)    
+    
+    # This method will allow a user to choose learning curve options
+    def lc_btn(self):
+        # create new window
+        lc_root = Toplevel()
+        lcframe = tk.Frame(lc_root)
+        lcframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        lcframe.columnconfigure(0, weight = 1)
+        lcframe.rowconfigure(0, weight = 1)
+        lcframe.pack(pady = 200, padx = 200)   
+        
+        scroll_canvas = self.gen_x_scroll_canvas(lcframe,1,1,self.lc.vars,self.vars["lc"],5,1,0)  
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.lc.vars, self.lc.combobox_options)        
+
+        #exit button to save choices
+        def exit_btn():
+            for key in self.lc.vars:
+                for key2 in self.lc.vars[key] or []:
+                    if (isinstance(self.lc.vars[key][key2],list) or isinstance(self.lc.vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.lc.vars[key][key2] == None or self.is_number(self.lc.vars[key][key2]) or isinstance(self.lc.vars[key][key2],str)):
+                        self.lc.vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            lc_root.destroy()
+            lc_root.update()
+            
+        save_b = tk.Button(lcframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.pack(side=TOP)        
+        
+    # This method will allow a user to choose plot settings
+    def ps_btn(self):
+        # create new window
+        ps_root = Toplevel()
+        psframe = tk.Frame(ps_root)
+        psframe.grid(column=0,row=0, sticky=(N,W,E,S) )
+        psframe.columnconfigure(0, weight = 1)
+        psframe.rowconfigure(0, weight = 1)
+        psframe.pack(pady = 200, padx = 200)   
+        
+        label = Label(psframe,text="Plot Settings")
+        label.grid(row=1,column=0)
+        user_choices = self.generate_user_options(psframe,2,0,self.ps.vars, None)        
+
+        #exit button to save choices
+        def exit_btn():
+            ps_root.destroy()
+            ps_root.update()
+            
+        save_b = tk.Button(psframe, 
+                       text="Save and Close", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.grid(row=0,column=0)        
+        
     # Make button to load csv file headers and location
     def load_csv(self, root):
         root.update()
@@ -783,6 +769,11 @@ class GUI:
             headers.append(col)
             num_cols = num_cols + 1
         self.vars["headers"] = headers
+        # for easier saving
+        self.input_features = headers
+        self.not_input_features = headers
+        self.validation_columns = headers
+        
         i_f = list()
         n_i_f = list()
         v_c = list()
@@ -791,23 +782,243 @@ class GUI:
             n_i_f.append(IntVar())
             v_c.append(IntVar())
             
-        self.vars["input_features"] =  i_f
-        self.vars["not_input_features"] = n_i_f
-        self.vars["validation_columns"] = v_c       
-        self.ds.change_combobox(headers)
+        self.gs.vars["input_features"] =  i_f
+        self.gs.vars["not_input_features"] = n_i_f
+        self.gs.vars["validation_columns"] = v_c       
+        self.ds.combobox_initialization(headers)
+        self.fg.combobox_initialization(headers)
 
 
-
+    def load_driver(self):
+        self.vars["driver"] = fd.askopenfilename()
     
-# Make button to load .conf file
-def load_conf():
-    print("todo")
-    #TODO
+    # Make button to load .conf file
+    def load_conf(self):
+        print("todo")
+        #TODO
     
     
-def result_folder():
-    result_dir = fd.askdirectory()
-    vars["result_loc"] = result_dir
+    def result_folder(self):
+        result_dir = fd.askdirectory()
+        self.vars["result_loc"] = result_dir
+        
+    # This method will help expedite saving
+    #
+    # Variables: vars (vars to be saved), file (file to be written to), nl (new line character)
+    def save_helper(self,vars,file,nl):
+        for key in vars:
+            # see if list has dictionaries that need to be iterated through
+            if (isinstance(vars[key],dict)):
+                for key2 in vars[key]:
+                    file.write("    ")
+                    if (key2[-2:] == "CB"):
+                        file.write(key2[:-2])
+                    else:
+                        file.write(key2)
+                    file.write(" = ")
+                    if (vars[key][key2] == None):
+                        pass
+                    # IntVar write
+                    elif (isinstance(vars[key][key2],IntVar)):
+                        if (vars[key][key2].get() == 1):
+                            file.write("True")
+                        else:
+                            file.write("False")
+                    # write strings automatically
+                    elif (isinstance(vars[key][key2], str)):
+                        file.write(vars[key][key2])
+                        
+                    # write checklists
+                    elif (isinstance(vars[key][key2],list)):
+                        indx = 0
+                        first_write = 0
+                        for i in getattr(self,key2):
+                            if (vars[key][key2][indx].get() == 1):
+                                if(first_write == 0):
+                                    first_write = 1
+                                else:
+                                    file.write(", ")
+                                file.write(i)
+                            indx = indx + 1
+                    file.write(nl)
+            # Useful for general features
+            else:
+                file.write("    ")
+                if (key[-2:] == "CB"):
+                    file.write(key[:-2])
+                else:
+                    file.write(key)
+                file.write(" = ")
+                if (vars[key] == None):
+                    pass
+                # IntVar write
+                elif (isinstance(vars[key],IntVar)):
+                    if (vars[key].get() == 1):
+                        file.write("True")
+                    else:
+                        file.write("False")
+                # write strings automatically
+                elif (isinstance(vars[key], str)):
+                    file.write(vars[key])
+                    
+                # write checklists
+                elif (isinstance(vars[key],list)):
+                    indx = 0
+                    first_write = 0
+                    for i in getattr(self,key):
+                        if (vars[key][indx].get() == 1):
+                            if(first_write == 0):
+                                first_write = 1
+                            else:
+                                file.write(", ")
+                            file.write(i)
+                        indx = indx + 1
+                file.write(nl)
+                
+    # This method will help write classes that contain [[]] vars
+    #
+    # variables vars (features to be written), tf (whether features will be written), file (file to write to), nl (new line character)
+    def write_double_brackets(self,vars,tf,file,nl):
+        for key,val in zip(vars,tf):
+            if (val.get() == 1):
+                file.write("    [[")
+                if (key[-2:] == "CB"):
+                    file.write(key[:-2])
+                else:
+                    file.write(key)
+                file.write("]]")
+                file.write(nl)
+                for key2 in vars[key] or []:
+                    file.write("        ")
+                    file.write(key2)
+                    file.write(" = ")
+                    if (vars[key][key2] == None):
+                        pass
+                    # IntVar write
+                    elif (isinstance(vars[key][key2],IntVar)):
+                        if (vars[key][key2].get() == 1):
+                            file.write("True")
+                        else:
+                            file.write("False")
+                    # write strings automatically
+                    elif (isinstance(vars[key][key2], str)):
+                        file.write(vars[key][key2])
+                        
+                    # write checklists
+                    elif (isinstance(vars[key][key2],list)):
+                        indx = 0
+                        first_write = 0
+                        for i in getattr(self,key2):
+                            if (vars[key][key2][indx].get() == 1):
+                                if(first_write == 0):
+                                    first_write = 1
+                                else:
+                                    file.write(", ")
+                                file.write(i)
+                            indx = indx + 1
+                    file.write(nl)
+        
+    def save(self):
+        save_name = os.path.join(self.vars["result_loc"], "conf_file.conf")
+        f = open(save_name, "w+")
+        # new line variable different depending on platform
+        nl = "\n"
+        
+        # Write general setting
+        f.write("[GeneralSetup]")
+        f.write(nl)
+        self.save_helper(self.gs.vars,f,nl)        
+        f.write(nl)
+        f.write(nl)
+        
+        # Write DataCleaning setting
+        f.write("[DataCleaning]")
+        f.write(nl)
+        for key in self.dc.vars:
+            if (key != None):
+                if (key != 'imputation_strategy'):
+                    f.write("    ")
+                    if (key[-2:] == "CB"):
+                        f.write(key[:-2])
+                    else:
+                        f.write(key)
+                    f.write(' = ')
+                    if (self.dc.vars[key] != None):
+                        f.write(self.dc.vars[key])
+                else:
+                    if (self.dc.vars['cleaning_method'] == 'imputation'):
+                        f.write("    ")
+                        f.write(key)
+                        f.write(' = ')
+                        if (self.dc.vars[key] != None):
+                            f.write(self.dc.vars[key])
+            f.write(nl)
+        f.write(nl)
+        f.write(nl)
+        
+        # Write Clustering setting
+        f.write("[Clustering]")
+        f.write(nl)
+        self.write_double_brackets(self.cl.vars,self.vars['cl'],f,nl)        
+        f.write(nl)
+        f.write(nl)
+        
+        # Write FeatureGeneration setting
+        f.write("[FeatureGeneration]")
+        f.write(nl)
+        self.write_double_brackets(self.fg.vars,self.vars['fg'],f,nl)               
+        f.write(nl)
+        f.write(nl)
+        
+        # Write FeatureNormalization setting
+        f.write("[FeatureNormalization]")
+        f.write(nl)
+        self.write_double_brackets(self.fn.vars,self.vars['fn'],f,nl)         
+        f.write(nl)
+        f.write(nl)
+        
+        # Write LearningCurve setting
+        f.write("[LearningCurve]")
+        f.write(nl)
+        self.save_helper(self.lc.vars,f,nl)        
+        f.write(nl)
+        f.write(nl)
+        
+        # Write FeatureSelection setting
+        # Need to edit this
+        f.write("[FeatureSelection]")
+        f.write(nl)
+        self.write_double_brackets(self.fn.vars,self.vars['fs'],f,nl)       
+        f.write(nl)
+        f.write(nl)
+        
+        # Write DataSplits setting
+        f.write("[DataSplits]")
+        f.write(nl)
+        self.write_double_brackets(self.ds.vars,self.vars['ds'],f,nl)         
+        f.write(nl)
+        f.write(nl)
+        
+        # Write Models setting
+        f.write("[Models]")
+        f.write(nl)
+        self.write_double_brackets(self.mo.vars,self.vars['mo'],f,nl)       
+        f.write(nl)
+        f.write(nl)
+        
+        # Write PlotSettings setting
+        f.write("[PlotSettings]")
+        f.write(nl)
+        self.save_helper(self.ps.vars,f,nl)      
+        f.write(nl)
+        
+        f.close()
+        self.vars["conf_loc"] = save_name
+    
+    def run(self):
+        command = "python3 -m "
+        command = command + self.vars["conf_loc"] + " " + self.vars["csv_loc"] + " -o " + self.vars["result_loc"]
+        os.system(command)
     
 
     
@@ -840,14 +1051,32 @@ load_data_b.grid(row=0, column=1)
 # will load conf files
 load_conf_b = tk.Button(mainframe,
                    text="Load .conf file",
-                   command=load_conf)
+                   command=lambda : gui.load_conf())
 load_conf_b.grid(row=0, column=2)
 
 # will choose the result folder for the mastml files to be saved to
 result_b = tk.Button(mainframe,
                    text="Choose Result Folder",
-                   command=result_folder)
+                   command=lambda : gui.result_folder())
 result_b.grid(row=0, column=3)
+
+# allows user to find the driver location
+result_b = tk.Button(mainframe,
+                   text="Load Driver Location",
+                   command=lambda : gui.load_driver())
+result_b.grid(row=0, column=4)
+
+# save the conf file
+result_b = tk.Button(mainframe,
+                   text="Save",
+                   command=lambda : gui.save())
+result_b.grid(row=0, column=5)
+
+# will run the conf file
+result_b = tk.Button(mainframe,
+                   text="Run",
+                   command=lambda : gui.run())
+result_b.grid(row=0, column=6)
 
 # fill out the general section of the conf file
 gen_b = tk.Button(mainframe, 
@@ -890,5 +1119,15 @@ gen_b = tk.Button(mainframe,
                    text="Feature Selection", 
                    command=lambda : gui.fs_btn())
 gen_b.grid(row=8, column=0)
+
+gen_b = tk.Button(mainframe, 
+                   text="Learning Curve", 
+                   command=lambda : gui.lc_btn())
+gen_b.grid(row=9, column=0)
+
+gen_b = tk.Button(mainframe, 
+                   text="Plot Settings", 
+                   command=lambda : gui.ps_btn())
+gen_b.grid(row=10, column=0)
 
 root.mainloop()
