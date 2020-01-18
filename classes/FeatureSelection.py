@@ -14,19 +14,19 @@ class FeatureSelection:
                     "SelectFdr": None,
                     "SelectFwe": None,
                     # Estimator needs to match an entry in models (_selectRFE appended)
-                    "RFE": { "estimatorCB" : None, "n_features_to_select" : 5, "step" : 1},
+                    "RFE": { "estimatorCB" : "---", "n_features_to_select" : 5, "step" : 1},
                     # Estimator needs to match an entry in models (_selectSFS appended)
-                    "SequentialFeatureSelector": { "estimatorCB" : None, "k_features" : 5},
+                    "SequentialFeatureSelector": { "estimatorCB" : "---", "k_features" : 5},
                     # Estimator needs to match an entry in models (_selectRFECV appended)
                     # CV needs to match an entry in datasplits (_selectRFECV appended)
-                    "RFECV": { "estimatorCB" : None, "step" : 1, "cvCB" : None, "min_features_to_select" : 1},
+                    "RFECV": { "estimatorCB" : "---", "step" : 1, "cvCB" : "---", "min_features_to_select" : 1},
                     # Estimator needs to match an entry in models (_selectfrommodel appended)
-                    "SelectFromModel": { "estimatorCB" : None, "max_features" : 5},
+                    "SelectFromModel": { "estimatorCB" : "---", "max_features" : 5},
                     "VarianceThreshold": { "threshold" : 0},
                     "PCA": { "n_components" : 5},
                     # Estimator needs to match an entry in models (_selectMASTML appended)
                     # CV needs to match an entry in Datasplits (_selectMASTML appended)
-                    "MASTMLFeatureSelector": { "estimatorCB" : None, "n_features_to_select" : 5, "cvCB" : None}}
+                    "MASTMLFeatureSelector": { "estimatorCB" : "---", "n_features_to_select" : 5, "cvCB" : "---"}}
                     
     # This method initializes the combobox_options based on user choices
     #

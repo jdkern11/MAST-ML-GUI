@@ -7,10 +7,10 @@ class FeatureGeneration:
         feature_types_binary = list()
         for i in self.feature_types:
             feature_types_binary.append(IntVar())
-        self.vars ={"Magpie": {"composition_featureCB": None, "feature_types": feature_types_binary},
-                    "MaterialsProject":{"composition_featureCB": None, "api_key": "fill in"},
-                    "Citrine": {"composition_featureCB": None, "api_key": "fill in"},
-                    "ContainsElement": {"composition_featureCB": None, "all_elements": IntVar(), "element": "Ex: Al", "new_name": "Ex: has_Al"},
+        self.vars ={"Magpie": {"composition_featureCB": "---", "feature_types": feature_types_binary},
+                    "MaterialsProject":{"composition_featureCB": "---", "api_key": "fill in"},
+                    "Citrine": {"composition_featureCB": "---", "api_key": "fill in"},
+                    "ContainsElement": {"composition_featureCB": "---", "all_elements": IntVar(), "element": "Ex: Al", "new_name": "Ex: has_Al"},
                     "PolynomialFeatures": {"degree": 2, "interaction_only": IntVar(), "include_bias": IntVar()}}
                     
         self.combobox_options = {"Magpiecomposition_featureCB": None,
