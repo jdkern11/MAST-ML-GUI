@@ -1,18 +1,18 @@
 class LearningCurve:
     def __init__(self):
     
-        self.combobox_options = {"LearningCurveestimatorCB": None,
-                                 "LearningCurvecvCB": None,
-                                 "LearningCurveselector_nameCB": None,
+        self.combobox_options = {"LearningCurveestimatorCB": ['---'],
+                                 "LearningCurvecvCB": ['---'],
+                                 "LearningCurveselector_nameCB": ['---'],
                                  "LearningCurvescoringCB": ["root_mean_squared_error"]}
         # Estimator needs to match an entry in models (_learn appended)
         # CV needs to match an entry in datasplits (_learn appended)
         # selector_name needs to match featureselection entry
-        self.vars = {"LearningCurve": {"estimatorCB": None, 
-                                       "cvCB": None, 
+        self.vars = {"LearningCurve": {"estimatorCB": "---", 
+                                       "cvCB": "---", 
                                        "scoringCB": "root_mean_squared_error",
                                        "n_features_to_select": 5, 
-                                       "selector_nameCB": None}}
+                                       "selector_nameCB": "---"}}
                                        
                                        
    # This method initializes the combobox_options based on user choices

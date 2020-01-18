@@ -16,7 +16,7 @@ class DataSplits:
                     "StratifiedKFold": { "n_splits" : 3},
                     "ShuffleSplit": { "n_splits" : 10},
                     "StratifiedShuffleSplit": { "n_splits" : 10},
-                    "LeaveOneGroupOut": { "grouping_columnCB" : None}}
+                    "LeaveOneGroupOut": { "grouping_columnCB" : "---"}}
                     
     def combobox_initialization(self, names):
         self.combobox_options["LeaveOneGroupOutgrouping_columnCB"] = names

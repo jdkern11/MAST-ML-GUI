@@ -19,6 +19,11 @@ from classes.GeneralSetup import GeneralSetup as GS
 from classes.Models import Models as Mo
 import tkinter.filedialog as fd
 from sys import platform
+# try for python2, except for python3
+try:
+    from tkinter import tkMessageBox
+except:
+    from tkinter import messagebox
 
 #--------------------------------------------------------
 # Create a Graphic User Interface for MAST-ML
@@ -30,8 +35,14 @@ from sys import platform
 
 class GUI:
     def __init__(self):
+        
+        #Store root frame
+        self.root = None
+        # pages of gui
+        self.pages = {"gs":None, "dc":None, "fg":None, "cl":None, "fn":None, 
+                      "ds":None, "fs":None, "lc":None, "ms":None, "mo":None}
         # Make lists of variables that will be altered based on user choices
-        self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": os.getcwd(), "driver": None,
+        self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": None, "driver": None,
                      "cl": list(), "fg": list(), "fn": list(), "mo": list(), "ds": list(), "fs": list(), "lc": IntVar()}
                      
         # General variable creations
@@ -103,72 +114,71 @@ class GUI:
         for i in range(0,len(self.mo.vars)):
             models.append(IntVar())
         self.vars["mo"] = models
-                            
-        
-    
+                                
     # adapted from Josselin, “tkinter Canvas Scrollbar with Grid?,” Stack Overflow, 01-May-1967. [Online]. Available: https://stackoverflow.com/questions/43731784/tkinter-canvas-scrollbar-with-grid. [Accessed: 03-Jan-2020].
     # generates scrollable canvas to store data in
     # 
     # variables: frame, gr (grid row), gc (grid column), texts (text for checkbuttons), tf (true false vars for checkbuttons)
     #            w (width, number of check buttons per row), h (height, number of check buttons per column)
     def gen_y_scroll_canvas(self,frame,gr,gc,texts,tf,w,h):
-        frame_canvas = tk.Frame(frame)
-        frame_canvas.grid(row=gr, column=gc, pady=(w, 0), sticky='nw')
-        frame_canvas.grid_rowconfigure(0, weight=1)
-        frame_canvas.grid_columnconfigure(0, weight=1)
-        # Set grid_propagate to False to allow w-by-h buttons resizing later
-        frame_canvas.grid_propagate(False)
-        canvas = tk.Canvas(frame_canvas, bg="yellow")
-        canvas.grid(row=0, column=0, sticky="news")
+        if (texts != None):
+            frame_canvas = tk.Frame(frame, borderwidth=1)
+            frame_canvas.grid(row=gr, column=gc, pady=(w, 0), sticky='nw')
+            frame_canvas.grid_rowconfigure(0, weight=1)
+            frame_canvas.grid_columnconfigure(0, weight=1)
+            # Set grid_propagate to False to allow w-by-h buttons resizing later
+            frame_canvas.grid_propagate(False)
+            canvas = tk.Canvas(frame_canvas, bg="black", borderwidth=1)
+            canvas.grid(row=0, column=0, sticky="news")
 
-        # Link a scrollbar to the canvas
-        vsb = tk.Scrollbar(frame_canvas, orient="vertical", command=canvas.yview)
-        vsb.grid(row=0, column=1, sticky='ns')
-        canvas.configure(yscrollcommand=vsb.set)
-        
-        frame_buttons = tk.Frame(canvas, bg="blue")
-        canvas.create_window((0, 0), window=frame_buttons, anchor='nw')
-        
-        # generate the list of check buttons
-        r = 0
-        c = 0
-        indx = 0
-        features_list = list()
-        for feature in texts:
-            features_list.append(Checkbutton(frame_buttons,text=texts[indx],variable=tf[indx]))
-            features_list[indx].grid(row=r, column=c, sticky='news')
-            indx = indx + 1
-            c = c+1
-            if (c == w):
-                c = 0
-                r = r + 1
+            # Link a scrollbar to the canvas
+            vsb = tk.Scrollbar(frame_canvas, orient="vertical", command=canvas.yview)
+            vsb.grid(row=0, column=1, sticky='ns')
+            canvas.configure(yscrollcommand=vsb.set)
+            
+            frame_buttons = tk.Frame(canvas, bg="blue")
+            canvas.create_window((0, 0), window=frame_buttons, anchor='nw')
+            
+            # generate the list of check buttons
+            r = 0
+            c = 0
+            indx = 0
+            features_list = list()
+            for feature in texts:
+                features_list.append(Checkbutton(frame_buttons,text=texts[indx],variable=tf[indx]))
+                features_list[indx].grid(row=r, column=c, sticky='news')
+                indx = indx + 1
+                c = c+1
+                if (c == w):
+                    c = 0
+                    r = r + 1
 
-        # resize buttons and find width and height of this canvas
-        frame_buttons.update_idletasks()        
-        firstWcolumns_width = sum([features_list[j].winfo_width() for j in range(0, w)])
-        firstHrows_height = sum([features_list[i*w].winfo_height() for i in range(0, h)])
+            # resize buttons and find width and height of this canvas
+            frame_buttons.update_idletasks()        
+            firstWcolumns_width = sum([features_list[j].winfo_width() for j in range(0, w)])
+            firstHrows_height = sum([features_list[i*w].winfo_height() for i in range(0, h)])
 
-        frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
-                        height=firstHrows_height)
-        canvas.config(scrollregion=canvas.bbox("all"))
-        return (frame_canvas)
-        
-    # Need to figure out what is wrong with this. I did a hardcode fix, but would prefer it to work fully
+            frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
+                            height=firstHrows_height)
+            canvas.config(scrollregion=canvas.bbox("all"))
+            return (frame_canvas)
+        else:
+            return Label(frame,text="Load CSV")
+       
+    # This method creates an x scroll region and returns information about the frames used for the buttons
+    #
+    # Need to figure out why all values aren't in the scroll region with bbox("all"). 
+    # I did a hardcode fix to add a pad so it fully contained all options, but would prefer it to work fully
     def gen_x_scroll_canvas(self,frame,gr,gc,texts,tf,w,h,pad):
         frame_canvas = tk.Frame(frame)
-        frame_canvas.pack(side=BOTTOM)
-        #frame_canvas.grid(row=gr, column=gc, pady=(w, 0), sticky='nw')
-        #frame_canvas.grid_rowconfigure(0, weight=1)
-        #frame_canvas.grid_columnconfigure(0, weight=1)
-        # Set grid_propagate to False to allow w-by-h buttons resizing later
-        #frame_canvas.grid_propagate(False)
+        frame_canvas.pack(side=BOTTOM, anchor='nw')
+        
         canvas = tk.Canvas(frame_canvas)
-        #canvas.grid(row=1, column=0, sticky="news")
+
         canvas.pack(side=BOTTOM,fill=BOTH,expand=True)
 
         # Link a scrollbar to the canvas
         vsb = tk.Scrollbar(frame, orient="horizontal", command=canvas.xview)
-        #vsb.grid(row=0, column=0, sticky='ns')
         vsb.pack(side=TOP,fill=BOTH)
         canvas.configure(xscrollcommand=vsb.set)
         
@@ -189,6 +199,7 @@ class GUI:
         # resize buttons
         frame_buttons.update_idletasks()
         #canvas.config(scrollregion=canvas.bbox("all"))
+        canvas.config(width = self.root.winfo_width())
         canvas.config(scrollregion=(4,4,frame_buttons.winfo_reqwidth()+pad,50))
         canvases = list()
         canvases.append(frame_canvas)
@@ -246,6 +257,8 @@ class GUI:
                     combo_indx = self.find_combobox_indx(combobox_vars[(key+key2)], vars[key][key2])
                     if (combo_indx != -1):
                         vars_dict[(key+key2)].current(combo_indx)
+                    else:
+                        vars_dict[(key+key2)].set('---')
                     vars_dict[(key+key2)].grid(row=r,column=c)
                     r = r+1
                     
@@ -281,53 +294,81 @@ class GUI:
                     r = r + 1                
             c = c + 1
         return vars_dict
-        
-    
+            
     # This method creates a new window to determine the general settings of the conf file
     # Changes will automatically save as attributes of the gui class 
-    def general(self):                    
-        # create new window
-        gen_root = Toplevel()
-        genframe = tk.Frame(gen_root)
-        genframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        genframe.columnconfigure(2, weight = 1)
-        genframe.rowconfigure(0, weight = 1)
-        genframe.pack(pady = 100, padx = 100)
+    # Variables: Page (page to draw on), r (start row), c (start column)
+    def general(self, page, r, c):    
+        for widget in page.winfo_children():
+            widget.destroy()
+        # create new frame
+        frame_canvas = tk.Frame(page)
+        frame_canvas.grid(row=r, column=c, sticky='nw')
+        frame_canvas.grid_rowconfigure(0, weight=1)
+        frame_canvas.grid_columnconfigure(0, weight=1)
+        canvas = tk.Canvas(frame_canvas)
+        canvas.grid(row=0, column=0, sticky="news")
+
+        genframe = tk.Frame(canvas)
+        genframe.grid(row=0,column=0,sticky=NW)
+        
+        #add second frame for bigger list
+        frame_canvas2 = tk.Frame(canvas)
+        frame_canvas2.grid(row=0, column=1, sticky='nw')
+        frame_canvas2.grid_rowconfigure(0, weight=1)
+        frame_canvas2.grid_columnconfigure(0, weight=1)
+        canvas2 = tk.Canvas(frame_canvas2)
+        canvas2.grid(row=0, column=0, sticky="news")
+
+        genframe2 = tk.Frame(canvas2)
+        genframe2.grid(row=0,column=0)
         
         # add auto checkbox for input features and metrics
-        if_auto = Checkbutton(genframe,text="Auto",variable=self.gs.vars["input_features"]["Auto"]).grid(row=2,column=1)
+        if_auto = Checkbutton(genframe2,text="Auto",variable=self.gs.vars["input_features"]["Auto"]).grid(row=1,column=1)
         met_auto = Checkbutton(genframe,text="Auto",variable=self.gs.vars["metrics"]["Auto"]).grid(row=5,column=1)
         
         gen_widgets = [0]*7
         # input features, widget 0
-        gen_widgets[0] = self.gen_y_scroll_canvas(genframe,2,2,self.vars["headers"],self.gs.vars["input_features"]["features"],4,5)   
-        gen_widgets[0].grid_remove()
+        gen_widgets[0] = self.gen_y_scroll_canvas(genframe2,1,2,self.vars["headers"],self.gs.vars["input_features"]["features"],4,5).grid(row=1,column=2) 
+        #gen_widgets[0].grid_remove()
         # target feature choice, widget 1
         gen_widgets[1] = ttk.Combobox(genframe, values=self.vars["headers"])
         indx = self.find_combobox_indx(self.vars["headers"],self.gs.vars["input_target"])
         if (indx != -1):
             gen_widgets[1].current(indx)
+        else:
+            gen_widgets[1].set('---')
+        gen_widgets[1].grid(row=1,column=1)
         # randomizer choice, widget 2
         gen_widgets[2] = Checkbutton(genframe,variable=self.gs.vars["randomizer"],anchor='w')
+        gen_widgets[2].grid(row=2,column=1)
         # metrics choices, widget 3
         metric_checkbuttons = list()
-        c = 1
+        col = 1
         for i in self.gs.metrics:
-            metric_checkbuttons.append(Checkbutton(genframe,text=i,variable=self.gs.vars["metrics"]["tf"][c-1]))
-            c = c + 1   
+            metric_checkbuttons.append(Checkbutton(genframe,text=i,variable=self.gs.vars["metrics"]["tf"][col-1]))
+            col = col + 1   
         gen_widgets[3] = metric_checkbuttons
+        row = 6
+        for x in gen_widgets[3]:
+            x.grid(row=row,column=1)
+            row = row + 1
         # input_other, widget 4
-        gen_widgets[4] = self.gen_y_scroll_canvas(genframe,2,2,self.vars["headers"],self.gs.vars["input_other"],4,5)
-        gen_widgets[4].grid_remove()
+        gen_widgets[4] = self.gen_y_scroll_canvas(genframe2,2,2,self.vars["headers"],self.gs.vars["input_other"],4,5).grid(row=2,column=2)
+        #gen_widgets[4].grid_remove()
         # input_grouping, widget 5
         gen_widgets[5] = ttk.Combobox(genframe, values=self.vars["headers"])
         indx = self.find_combobox_indx(self.vars["headers"],self.gs.vars["input_grouping"])
         if (indx != -1):
             gen_widgets[5].current(indx)
+        else:
+            gen_widgets[5].set('---')
+        gen_widgets[5].grid(row=3,column=1)
         # input_testdata_canvas, widget 6
-        gen_widgets[6] = self.gen_y_scroll_canvas(genframe,2,2,self.vars["headers"],self.gs.vars["input_testdata"],4,5)
-        gen_widgets[6].grid_remove()
+        gen_widgets[6] = self.gen_y_scroll_canvas(genframe2,3,2,self.vars["headers"],self.gs.vars["input_testdata"],4,5).grid(row=3,column=2)
+        #gen_widgets[6].grid_remove()
         
+        """
         # create 0 array to see if widgets active
         active = [0]*7
         # remove widget from frame if a new button is pressed
@@ -335,52 +376,15 @@ class GUI:
             for i in range(0,7):
                 if (active[i] == 1):
                     active[i] = 0
-                    if (i != 3):
+                    if(i==1 or i==2 or i==5):
+                        pass
+                    elif (i != 3):
                         gen_widgets[i].grid_remove()
                     else:
                         for x in gen_widgets[i]:
                             x.grid_remove()
-
-        # Generate buttons to show various widgets
-        def input_features_btn():
-            remove()
-            gen_widgets[0].grid(row=2,column=2)
-            active[0] = 1
-            
-        def input_target_btn():
-            remove()
-            gen_widgets[1].grid(row=3,column=1)
-            active[1] = 1
-            
-            
-        def randomizer_btn():
-            remove()
-            gen_widgets[2].grid(row=4,column=1)
-            active[2] = 1
+        """
         
-        def metrics_btn():
-            remove()
-            c = 2
-            for x in gen_widgets[3]:
-                x.grid(row=5,column=c)
-                c = c + 1
-            active[3] = 1
-        
-        def input_other_btn():
-            remove()
-            gen_widgets[4].grid(row=6,column=2)
-            active[4] = 1
-            
-        def input_grouping_btn():
-            remove()
-            gen_widgets[5].grid(row=7,column=1)
-            active[5] = 1
-        
-        def input_testdata_btn():
-            remove()
-            gen_widgets[6].grid(row=8,column=2)
-            active[6] = 1
-            
         def exit_btn():
             self.gs.vars["input_target"] = gen_widgets[1].get()
             self.gs.vars["input_grouping"] = gen_widgets[5].get()
@@ -388,35 +392,30 @@ class GUI:
             gen_root.update()
         
         # Create labels and buttons for the various genneral settings
-        gen_l = [Label(genframe,text="General"),tk.Button(genframe,text="input_features",command=input_features_btn),
-        tk.Button(genframe,text="input_target",command=input_target_btn),tk.Button(genframe,text="randomizer",command=randomizer_btn),
-        tk.Button(genframe,text="metrics",command=metrics_btn),tk.Button(genframe,text="input_other",command=input_other_btn),
-        tk.Button(genframe,text="input_grouping",command=input_grouping_btn),tk.Button(genframe,text="input_testdata",command=input_testdata_btn)]
-        
+        gen_l = [Label(genframe,text="input_target"),
+        Label(genframe,text="randomizer"),Label(genframe,text="input_grouping"),Label(genframe,text=""),
+        Label(genframe,text="metrics"),Label(genframe2,text="input_features"),
+        Label(genframe2,text="input_other"),Label(genframe2,text="input_testdata")]
         # Add labels to grid
-        r = 1
+        row = 1
+        column = 0
         for label in gen_l:
-            label.grid(row=r, column=0)
-            r = r + 1
-
-
+            if(row == 6):
+                row = 1
+            label.grid(row=row, column=column)
+            row = row + 1
         
         save_b = tk.Button(genframe, 
-                       text="Save and Close", 
+                       text="Save General Setup", 
                        fg="red",
                        command=exit_btn)
         save_b.grid(row=0, column=0)
-        
-        
+                
     # This method allows the user to fill out the data cleaning section of the conf file
-    def data_cleaning(self):
-        # create new window
-        data_clean_root = Toplevel()
-        data_cleanframe = tk.Frame(data_clean_root)
-        data_cleanframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        data_cleanframe.columnconfigure(2, weight = 1)
-        data_cleanframe.rowconfigure(0, weight = 1)
-        data_cleanframe.pack(pady = 100, padx = 100)
+    def data_cleaning(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        data_cleanframe = page
         
         data_clean_l = [Label(data_cleanframe,text="cleaning_method"),Label(data_cleanframe,text="imputation_strategy")]
         r = 1
@@ -433,7 +432,8 @@ class GUI:
         indx = self.find_combobox_indx(self.imputation_strategy,self.dc.vars["imputation_strategy"])
         if (indx != -1):
             data_clean_widgets[1].current(indx)
-                        
+        else:
+            data_clean_widgets[1].set('---')
         # Method derived from following resource:
         # F. Segers, “Intercept event when combobox edited,” Stack Overflow, 01-Dec-2011. [Online]. Available: https://stackoverflow.com/questions/8432419/intercept-event-when-combobox-edited. [Accessed: 07-Jan-2020].
         # Only show the data imputation options if data imputation is chosen as the cleaning method
@@ -452,31 +452,28 @@ class GUI:
             data_clean_widgets[0].current(indx)
             if (indx == 1):
                 data_clean_widgets[1].grid(row=2, column=1)
-                data_clean_l[1].grid(row=2, column=0)               
+                data_clean_l[1].grid(row=2, column=0)
+        else:
+            data_clean_widgets[0].set('---')
         data_clean_widgets[0].grid(row = 1, column = 1)     
        
         # exit button to save choices
         def exit_btn():
             self.dc.vars["cleaning_method"] = data_clean_widgets[0].get()
             self.dc.vars["imputation_strategy"] = data_clean_widgets[1].get()
-            data_clean_root.destroy()
-            data_clean_root.update()
             
         save_b = tk.Button(data_cleanframe, 
-                       text="Save and Close", 
+                       text="Save", 
                        fg="red",
                        command=exit_btn)
         save_b.grid(row=0, column=0)
         
     # This method will allow a user to choose clustering options
-    def clustering_btn(self):
-        # create new window
-        clustering_root = Toplevel()
-        clusteringframe = tk.Frame(clustering_root)
-        clusteringframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        clusteringframe.columnconfigure(2, weight = 1)
-        clusteringframe.rowconfigure(0, weight = 1)
-        clusteringframe.pack(pady = 100, padx = 100)
+    def clustering_btn(self, page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+    
+        clusteringframe = page
         
         # make a list of clustering check buttons
         indx = 0
@@ -498,24 +495,18 @@ class GUI:
                     # this is a stipulation according to scikit-learn, so I will be nice an ensure it.
                     if (key == 'AgglomerativeClustering' and key2 == 'linkage' and self.cl.vars[key][key2] == 'ward'):
                         self.cl.vars[key]['affinity'] = 'euclidean'
-            clustering_root.destroy()
-            clustering_root.update()
             
         save_b = tk.Button(clusteringframe, 
-                       text="Save and Close", 
+                       text="Save", 
                        fg="red",
                        command=exit_btn)
         save_b.grid(row=0, column=0)
 
     # This method will allow a user to choose feature generation options
-    def fg_btn(self):
-        # create new window
-        fg_root = Toplevel()
-        fgframe = tk.Frame(fg_root)
-        fgframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        fgframe.columnconfigure(2, weight = 1)
-        fgframe.rowconfigure(0, weight = 1)
-        fgframe.pack(pady = 100, padx = 100)
+    def fg_btn(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        fgframe = page
         
         # make a list of fg checkbuttons
         indx = 0
@@ -539,25 +530,18 @@ class GUI:
                                 self.fg.vars[key][key2] = user_choices[key+key2].get()
                         else:
                             self.fg.vars[key][key2] = user_choices[key+key2].get()
-            # save changes
-            fg_root.destroy()
-            fg_root.update()
             
         save_b = tk.Button(fgframe, 
-                       text="Save and Close", 
+                       text="Save", 
                        fg="red",
                        command=exit_btn)
         save_b.grid(row=0, column=0)
     
     # This method will allow a user to choose feature normalization options
-    def fn_btn(self):
-        # create new window
-        fn_root = Toplevel()
-        fnframe = tk.Frame(fn_root)
-        fnframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        fnframe.columnconfigure(2, weight = 1)
-        fnframe.rowconfigure(0, weight = 1)
-        fnframe.pack(pady = 100, padx = 100)
+    def fn_btn(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        fnframe = page
     
         # make a list of fn checkbuttons
         fn_checkbuttons = list()
@@ -586,25 +570,104 @@ class GUI:
                                 self.fn.vars[key][key2] = user_choices[key+key2].get()
                         else:
                             self.fn.vars[key][key2] = user_choices[key+key2].get()
-            # save changes
-            fn_root.destroy()
-            fn_root.update()
             
         save_b = tk.Button(fnframe, 
-                       text="Save and Close", 
+                       text="Save", 
                        fg="red",
                        command=exit_btn)
         save_b.grid(row=0, column=0)
+            
+    # This method will allow a user to choose learning curve options
+    def lc_btn(self,page,r,c):        
+        for widget in page.winfo_children():
+            widget.destroy()
+        lcframe = page
+        
+        tf_lc = Checkbutton(lcframe,text="Learning Curve" ,variable=self.vars["lc"]).grid(row=1,column=0)
+        user_choices = self.generate_user_options(lcframe,2,0,self.lc.vars, self.lc.combobox_options)        
+
+        #exit button to save choices
+        def exit_btn():
+            for key in self.lc.vars:
+                for key2 in self.lc.vars[key] or []:
+                    if (isinstance(self.lc.vars[key][key2],list) or isinstance(self.lc.vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.lc.vars[key][key2] == None or self.is_number(self.lc.vars[key][key2]) or isinstance(self.lc.vars[key][key2],str)):
+                        self.lc.vars[key][key2] = user_choices[key+key2].get()
+            
+        save_b = tk.Button(lcframe, 
+                       text="Save", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.grid(row=0, column=0)        
     
+    # This method will allow a user to perform feature selection
+    def fs_btn(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        fsframe = page
+        
+        scroll_canvas = self.gen_x_scroll_canvas(fsframe,1,1,self.fs.vars,self.vars["fs"],5,1,300)  
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.fs.vars, self.fs.combobox_options)        
+
+        #exit button to save choices
+        def exit_btn():
+            for key in self.fs.vars:
+                for key2 in self.fs.vars[key] or []:
+                    if (isinstance(self.fs.vars[key][key2],list) or isinstance(self.fs.vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.fs.vars[key][key2] == None or self.is_number(self.fs.vars[key][key2]) or isinstance(self.fs.vars[key][key2],str)):
+                        self.fs.vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            # Add feature selection to learning curve options
+            self.lc.combobox_initialization("fs",self.vars["fs"],self.fs.vars)
+            self.lc_btn(self.pages["lc"],0,0)
+            
+        save_b = tk.Button(fsframe, 
+                       text="Save", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.pack(side=TOP)       
+    
+    # This method will allow a user to select the datasplits
+    def ds_btn(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        dsframe = page
+
+        scroll_canvas = self.gen_x_scroll_canvas(dsframe,1,1,self.ds.vars,self.vars["ds"],5,1,300)  
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.ds.vars, self.ds.combobox_options)        
+
+        #exit button to save choices
+        def exit_btn():
+            for key in self.ds.vars:
+                for key2 in self.ds.vars[key] or []:
+                    if (isinstance(self.ds.vars[key][key2],list) or isinstance(self.ds.vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.ds.vars[key][key2] == None or self.is_number(self.ds.vars[key][key2]) or isinstance(self.ds.vars[key][key2],str)):
+                        self.ds.vars[key][key2] = user_choices[key+key2].get()
+            # save changes
+            # Add datasplits to feature selection options
+            self.fs.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
+            self.fs_btn(self.pages["fs"],0,0)
+            # Add datasplits to learning curve options
+            self.lc.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
+            self.lc_btn(self.pages["lc"],0,0)
+            
+        save_b = tk.Button(dsframe, 
+                       text="Save", 
+                       fg="red",
+                       command=exit_btn)
+        save_b.pack(side=TOP)   
+   
     # This method will allow a user to select the models
-    def model_btn(self):
-        # create new window
-        model_root = Toplevel()
-        modelframe = tk.Frame(model_root)
-        modelframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        modelframe.columnconfigure(0, weight = 1)
-        modelframe.rowconfigure(0, weight = 1)
-        modelframe.pack(pady = 100, padx = 100)    
+    def model_btn(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        modelframe = page
         
         scroll_canvas = self.gen_x_scroll_canvas(modelframe,1,1,self.mo.vars,self.vars["mo"],5,1,900)
         scroll_canvas[0].grid_propagate(True)
@@ -622,149 +685,29 @@ class GUI:
                         self.mo.vars[key][key2] = user_choices[key+key2].get()
             # Add models to feature selection options
             self.fs.combobox_initialization("model",self.vars["mo"],self.mo.vars)
+            self.fs_btn(self.pages["fs"],0,0)
             # Add models to learning curve options
             self.lc.combobox_initialization("model",self.vars["mo"],self.mo.vars)
-            # save changes
-            model_root.destroy()
-            model_root.update()
+            self.lc_btn(self.pages["lc"],0,0)
             
         save_b = tk.Button(modelframe, 
-                       text="Save and Close", 
+                       text="Save", 
                        fg="red",
                        command=exit_btn)
         save_b.pack(side=TOP)
         
-    # This method will allow a user to select the datasplits
-    def ds_btn(self):
-        # create new window
-        ds_root = Toplevel()
-        dsframe = tk.Frame(ds_root)
-        dsframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        dsframe.columnconfigure(0, weight = 1)
-        dsframe.rowconfigure(0, weight = 1)
-        dsframe.pack(pady = 200, padx = 200)   
-
-        scroll_canvas = self.gen_x_scroll_canvas(dsframe,1,1,self.ds.vars,self.vars["ds"],5,1,300)  
-        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.ds.vars, self.ds.combobox_options)        
-
-        #exit button to save choices
-        def exit_btn():
-            for key in self.ds.vars:
-                for key2 in self.ds.vars[key] or []:
-                    if (isinstance(self.ds.vars[key][key2],list) or isinstance(self.ds.vars[key][key2],IntVar)):
-                        # do nothing if list
-                        pass
-                    elif (self.ds.vars[key][key2] == None or self.is_number(self.ds.vars[key][key2]) or isinstance(self.ds.vars[key][key2],str)):
-                        self.ds.vars[key][key2] = user_choices[key+key2].get()
-            # save changes
-            # Add datasplits to feature selection options
-            self.fs.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
-            # Add datasplits to learning curve options
-            self.lc.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
-            ds_root.destroy()
-            ds_root.update()
-            
-        save_b = tk.Button(dsframe, 
-                       text="Save and Close", 
-                       fg="red",
-                       command=exit_btn)
-        save_b.pack(side=TOP)    
-    
-    
-    # This method will allow a user to perform feature selection
-    def fs_btn(self):
-        # create new window
-        fs_root = Toplevel()
-        fsframe = tk.Frame(fs_root)
-        fsframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        fsframe.columnconfigure(0, weight = 1)
-        fsframe.rowconfigure(0, weight = 1)
-        fsframe.pack(pady = 200, padx = 200)   
-        
-        scroll_canvas = self.gen_x_scroll_canvas(fsframe,1,1,self.fs.vars,self.vars["fs"],5,1,300)  
-        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.fs.vars, self.fs.combobox_options)        
-
-        #exit button to save choices
-        def exit_btn():
-            for key in self.fs.vars:
-                for key2 in self.fs.vars[key] or []:
-                    if (isinstance(self.fs.vars[key][key2],list) or isinstance(self.fs.vars[key][key2],IntVar)):
-                        # do nothing if list
-                        pass
-                    elif (self.fs.vars[key][key2] == None or self.is_number(self.fs.vars[key][key2]) or isinstance(self.fs.vars[key][key2],str)):
-                        self.fs.vars[key][key2] = user_choices[key+key2].get()
-            # save changes
-            # Add feature selection to learning curve options
-            self.lc.combobox_initialization("fs",self.vars["fs"],self.fs.vars)
-            fs_root.destroy()
-            fs_root.update()
-            
-        save_b = tk.Button(fsframe, 
-                       text="Save and Close", 
-                       fg="red",
-                       command=exit_btn)
-        save_b.pack(side=TOP)    
-    
-    # This method will allow a user to choose learning curve options
-    def lc_btn(self):
-        # create new window
-        lc_root = Toplevel()
-        lcframe = tk.Frame(lc_root)
-        lcframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        lcframe.columnconfigure(0, weight = 1)
-        lcframe.rowconfigure(0, weight = 1)
-        lcframe.pack(pady = 100, padx = 100)   
-        
-        tf_lc = Checkbutton(lcframe,text="Learning Curve" ,variable=self.vars["lc"]).grid(row=1,column=0)
-        user_choices = self.generate_user_options(lcframe,2,0,self.lc.vars, self.lc.combobox_options)        
-
-        #exit button to save choices
-        def exit_btn():
-            for key in self.lc.vars:
-                for key2 in self.lc.vars[key] or []:
-                    if (isinstance(self.lc.vars[key][key2],list) or isinstance(self.lc.vars[key][key2],IntVar)):
-                        # do nothing if list
-                        pass
-                    elif (self.lc.vars[key][key2] == None or self.is_number(self.lc.vars[key][key2]) or isinstance(self.lc.vars[key][key2],str)):
-                        self.lc.vars[key][key2] = user_choices[key+key2].get()
-            # save changes
-            lc_root.destroy()
-            lc_root.update()
-            
-        save_b = tk.Button(lcframe, 
-                       text="Save and Close", 
-                       fg="red",
-                       command=exit_btn)
-        save_b.grid(row=0, column=0)        
-        
     # This method will allow a user to choose misc settings
-    def ms_btn(self):
-        # create new window
-        ms_root = Toplevel()
-        msframe = tk.Frame(ms_root)
-        msframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-        msframe.columnconfigure(0, weight = 1)
-        msframe.rowconfigure(0, weight = 1)
-        msframe.pack(pady = 200, padx = 200)   
+    def ms_btn(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        msframe = page
         
         label = Label(msframe,text="Misc Settings")
         label.grid(row=1,column=0)
         user_choices = self.generate_user_options(msframe,2,0,self.ms.vars, None)        
 
-        #exit button to save choices
-        def exit_btn():
-            ms_root.destroy()
-            ms_root.update()
-            
-        save_b = tk.Button(msframe, 
-                       text="Save and Close", 
-                       fg="red",
-                       command=exit_btn)
-        save_b.grid(row=0,column=0)        
-        
     # Make button to load csv file headers and location
-    def load_csv(self, root):
-        root.update()
+    def load_csv(self, page):
         csv_filename = fd.askopenfilename()
         #csv = "\"" + csv_filename + "\""
         df = pd.read_csv(csv_filename)
@@ -793,6 +736,7 @@ class GUI:
         self.gs.vars["input_testdata"] = v_c       
         self.ds.combobox_initialization(headers)
         self.fg.combobox_initialization(headers)
+        self.general(self.pages['gs'],1,0)
 
     # Button to load driver location
     def load_driver(self):
@@ -943,18 +887,103 @@ class GUI:
                                         curr_var[key][line[0]][indx].set(1)
                                         break
                                     indx = indx + 1
+                                    
+                # Perform again for comboboxes
+                line[0] = line[0] + "CB"
+                if (line[0] in curr_var):
+                    # If there is a list of check boxes, line[0] is set to being checked
+                    if (curr_tf != None):
+                        indx  = 0
+                        # find indx
+                        for key2 in curr_var:
+                            if(key2 == line[0]):
+                                curr_tf[indx].set(1)
+                                break
+                            indx = indx + 1
+                            
+                    # Set IntVars
+                    if (isinstance(curr_var[line[0]], IntVar)):
+                        if (line[1] == 'True'):
+                            curr_var[line[0]].set(1)
+                        else:
+                            curr_var[line[0]].set(0)
+                    
+                    # Set Strings
+                    elif (isinstance(curr_var[line[0]], str) or self.is_number(curr_var[line[0]])):
+                        curr_var[line[0]] = line[1]
+                    
+                    # For lists of tf values
+                    elif (isinstance(curr_var[line[0]], list)):
+                        vals = line[1].split(', ')
+                        for val in vals:
+                            indx = 0
+                            for i in getattr(self,line[0]) or []:
+                                if (i == val):
+                                    curr_var[line[0]][indx].set(1)
+                                    break
+                                indx = indx + 1
+                    
+                    # For dictionaries that are not part of [[]] values
+                    elif (isinstance(curr_var[line[0]], dict) and key == None):
+                        # This will be if the value is Auto
+                        if line[1] in curr_var[line[0]]:
+                            # Set IntVars
+                            if (isinstance(curr_var[line[0]][line[1]], IntVar)):
+                                curr_var[line[0]][line[1]].set(1)
+                        else:
+                            # For lists of tf values
+                            vals = line[1].split(', ')
+                            for val in vals:
+                                indx = 0
+                                for i in getattr(self,line[1]) or []:
+                                    if (i == val):
+                                        curr_var[line[0]][line[1]][indx].set(1)
+                                        break
+                                    indx = indx + 1
+                
+                # For loading in [[]] things
+                if (key != None and key != line[0][:-2]):
+                    if (line[0] in curr_var[key]):
+                        # Set IntVars
+                        if (isinstance(curr_var[key][line[0]], IntVar)):
+                            if (line[1] == 'True'):
+                                curr_var[key][line[0]].set(1)
+                            else:
+                                curr_var[key][line[0]].set(0)
                         
-                
-                   
-                
-    
-    
+                        # Set Strings and ints
+                        elif (isinstance(curr_var[key][line[0]], str) or (self.is_number(curr_var[key][line[0]]))):
+                            curr_var[key][line[0]] = line[1]
+                        
+                        # For lists of tf values
+                        elif (isinstance(curr_var[key][line[0]], list)):
+                            vals = line[1].split(', ')
+                            for val in vals:
+                                indx = 0
+                                for i in getattr(self,line[0]) or []:
+                                    if (i == val):
+                                        curr_var[key][line[0]][indx].set(1)
+                                        break
+                                    indx = indx + 1
+                                    
+        self.general(gui.pages['gs'],1,0)
+        self.data_cleaning(gui.pages['dc'],0,0)
+        self.clustering_btn(gui.pages['cl'],0,0)
+        self.fg_btn(gui.pages['fg'],0,0)
+        self.fn_btn(gui.pages['fn'],0,0)
+        self.model_btn(gui.pages['mo'],0,0)
+        self.ds_btn(gui.pages['ds'],0,0)
+        self.fs_btn(gui.pages['fs'],0,0)
+        self.lc_btn(gui.pages['lc'],0,0)
+        self.ms_btn(gui.pages['ms'],0,0)
+
+    # This method allows the user to choose where the data is saved 
     def result_folder(self):
         result_dir = fd.askdirectory()
         #result_dir = "\"-o " + result_dir + "\""
         self.vars["result_loc"] = result_dir
        
-    # This function will help write all possible values in the list
+    # This method will help write all possible values in the list
     #
     # Variables: val (value passed to writer), key (text of getattr),file (file to write in)
     def value_write(self, val, key, file):
@@ -1054,8 +1083,19 @@ class GUI:
                     file.write(" = ")
                     self.value_write(vars[key][key2],key2,file)
                     file.write(nl)
-        
+     
+    # This method allows the user to save the data into a conf file
     def save(self):
+        if (self.vars["result_loc"] == None):   
+            try:
+                messagebox.showinfo("Title", "Must choose the result location first")
+                return
+            except:
+                try:
+                    tkMessageBox.showinfo("Title", "Must choose the result location first")
+                    return
+                except:
+                    return
         save_name = os.path.join(self.vars["result_loc"], "conf_file.conf")
         f = open(save_name, "w+")
         # new line variable different depending on platform
@@ -1114,12 +1154,14 @@ class GUI:
         f.write(nl)
         f.write(nl)
         
+        
         # Write LearningCurve setting
-        f.write("[LearningCurve]")
-        f.write(nl)
-        self.save_helper(self.lc.vars,f,nl,self.vars["lc"].get())        
-        f.write(nl)
-        f.write(nl)
+        if(self.vars["lc"].get() == 1):
+            f.write("[LearningCurve]")
+            f.write(nl)
+            self.save_helper(self.lc.vars,f,nl,self.vars["lc"].get())        
+            f.write(nl)
+            f.write(nl)
         
         # Write FeatureSelection setting
         # Need to edit this
@@ -1151,8 +1193,55 @@ class GUI:
         
         f.close()
         self.vars["conf_loc"] = save_name
-    
+ 
+    # This method allows the user to run MAST-ML
     def run(self):
+        
+        if (self.vars["driver"] == None):   
+            try:
+                messagebox.showinfo("Title", "Must load the driver first")
+                return
+            except:
+                try:
+                    tkMessageBox.showinfo("Title", "Must load the driver first")
+                    return
+                except:
+                    print("error")
+                    return
+                    
+        if (self.vars["csv_loc"] == None):   
+            try:
+                messagebox.showinfo("Title", "Must load the csv file first")
+                return
+            except:
+                try:
+                    tkMessageBox.showinfo("Title", "Must load the csv file first")
+                    return
+                except:
+                    return
+                    
+        if (self.vars["conf_loc"] == None):   
+            try:
+                messagebox.showinfo("Title", "Must load or save a conf file first")
+                return
+            except:
+                try:
+                    tkMessageBox.showinfo("Title", "Must load or save a conf file first")
+                    return
+                except:
+                    return
+                    
+        if (self.vars["result_loc"] == None):   
+            try:
+                messagebox.showinfo("Title", "Must choose the result location first")
+                return
+            except:
+                try:
+                    tkMessageBox.showinfo("Title", "Must choose the result location first")
+                    return
+                except:
+                    return
+
         
         command = "python -m mastml.mastml_driver \""
         # Store old directory to revert to after
@@ -1170,108 +1259,104 @@ class GUI:
 # Make the grid for the gui
 root = Tk()
 root.title("MAST-ML GUI")
-mainframe = tk.Frame(root)
-mainframe.grid(column=0,row=0, sticky=(N,W,E,S) )
-mainframe.columnconfigure(0, weight = 1)
-mainframe.rowconfigure(0, weight = 1)
-mainframe.pack(pady = 100, padx = 100)
 
 # Create an instance of the gui class
 gui = GUI()
+gui.root = root
+
+# Make separate frame for the buttons to exist in in the load page
+frame_canvas = tk.Frame(root)
+frame_canvas.pack(expand=1, fill='both')
+frame_canvas.grid_rowconfigure(0, weight=1)
+frame_canvas.grid_columnconfigure(0, weight=1)
+canvas = tk.Canvas(frame_canvas)
+canvas.grid(row=0, column=0, sticky="news")
+
+gsp_butns = tk.Frame(canvas)
+gsp_butns.grid(row=0,column=0)
+
+
+
+# Create a notebook for tabs
+nb = ttk.Notebook(root)
+
+# Create and add tabs
+gui.pages['gs'] = ttk.Frame(nb)
+gui.pages['dc'] = ttk.Frame(nb)
+gui.pages['cl'] = ttk.Frame(nb)
+gui.pages['fg'] = ttk.Frame(nb)
+gui.pages['fn'] = ttk.Frame(nb)
+gui.pages['mo'] = ttk.Frame(nb)
+gui.pages['ds'] = ttk.Frame(nb)
+gui.pages['fs'] = ttk.Frame(nb)
+gui.pages['lc'] = ttk.Frame(nb)
+gui.pages['ms'] = ttk.Frame(nb)
+
+nb.add(gui.pages['gs'], text='General Setup')
+nb.add(gui.pages['dc'], text='Data Cleaning')
+nb.add(gui.pages['cl'], text='Clustering')
+nb.add(gui.pages['fg'], text='Feature Generation')
+nb.add(gui.pages['fn'], text='Feature Normalization')
+nb.add(gui.pages['mo'], text='Model Selection')
+nb.add(gui.pages['ds'], text='Data Splitting')
+nb.add(gui.pages['fs'], text='Feature Selection')
+nb.add(gui.pages['lc'], text='Learning Curve')
+nb.add(gui.pages['ms'], text='Misc. Settings')
+
+nb.pack(expand=1, fill='both')
+
 
 # make control buttons
-quit_b = tk.Button(mainframe, 
+quit_b = tk.Button(gsp_butns, 
                    text="QUIT", 
                    fg="red",
                    command=quit)
                    
 quit_b.grid(row=0, column=0)
 # load csv files to obtain headers
-load_data_b = tk.Button(mainframe,
-                   text="Load .csv file",
-                   command=lambda : gui.load_csv(root))
+load_data_b = tk.Button(gsp_butns,
+                   text="Load .csv File",
+                   command=lambda : gui.load_csv(gui.pages['gs']))
 load_data_b.grid(row=0, column=1)
 
 # will load conf files
-load_conf_b = tk.Button(mainframe,
-                   text="Load .conf file",
+load_conf_b = tk.Button(gsp_butns,
+                   text="Load .conf File",
                    command=lambda : gui.load_conf())
 load_conf_b.grid(row=0, column=2)
 
 # will choose the result folder for the mastml files to be saved to
-result_b = tk.Button(mainframe,
+result_b = tk.Button(gsp_butns,
                    text="Choose Result Folder",
                    command=lambda : gui.result_folder())
 result_b.grid(row=0, column=3)
 
 # allows user to find the driver location
-result_b = tk.Button(mainframe,
+result_b = tk.Button(gsp_butns,
                    text="Load Driver Location",
                    command=lambda : gui.load_driver())
 result_b.grid(row=0, column=4)
 
 # save the conf file
-result_b = tk.Button(mainframe,
-                   text="Save",
+result_b = tk.Button(gsp_butns,
+                   text="Save .conf File",
                    command=lambda : gui.save())
 result_b.grid(row=0, column=5)
 
 # will run the conf file
-result_b = tk.Button(mainframe,
-                   text="Run",
+result_b = tk.Button(gsp_butns,
+                   text="Run MAST-ML",
                    command=lambda : gui.run())
 result_b.grid(row=0, column=6)
 
-# fill out the general section of the conf file
-gen_b = tk.Button(mainframe, 
-                   text="General", 
-                   command=lambda : gui.general())
-gen_b.grid(row=1, column=0)
-
-# fill out the data cleaning section
-gen_b = tk.Button(mainframe, 
-                   text="Data Cleaning", 
-                   command=lambda : gui.data_cleaning())
-gen_b.grid(row=2, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Clustering", 
-                   command=lambda : gui.clustering_btn())
-gen_b.grid(row=3, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Feature Generation", 
-                   command=lambda : gui.fg_btn())
-gen_b.grid(row=4, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Feature Normalization", 
-                   command=lambda : gui.fn_btn())
-gen_b.grid(row=5, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Model Selection", 
-                   command=lambda : gui.model_btn())
-gen_b.grid(row=6, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Data Splits", 
-                   command=lambda : gui.ds_btn())
-gen_b.grid(row=7, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Feature Selection", 
-                   command=lambda : gui.fs_btn())
-gen_b.grid(row=8, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Learning Curve", 
-                   command=lambda : gui.lc_btn())
-gen_b.grid(row=9, column=0)
-
-gen_b = tk.Button(mainframe, 
-                   text="Misc Settings", 
-                   command=lambda : gui.ms_btn())
-gen_b.grid(row=10, column=0)
-
+gui.general(gui.pages['gs'],1,0)
+gui.data_cleaning(gui.pages['dc'],0,0)
+gui.clustering_btn(gui.pages['cl'],0,0)
+gui.fg_btn(gui.pages['fg'],0,0)
+gui.fn_btn(gui.pages['fn'],0,0)
+gui.model_btn(gui.pages['mo'],0,0)
+gui.ds_btn(gui.pages['ds'],0,0)
+gui.fs_btn(gui.pages['fs'],0,0)
+gui.lc_btn(gui.pages['lc'],0,0)
+gui.ms_btn(gui.pages['ms'],0,0)
 root.mainloop()
