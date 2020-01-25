@@ -1050,7 +1050,6 @@ class GUI:
                     file.write(i)
                 indx = indx + 1
                 
-    
     # This method will help expedite saving
     #
     # Variables: vars (vars to be saved), file (file to be written to), nl (new line character), tf (whether choice is optional)
@@ -1095,31 +1094,14 @@ class GUI:
                             file.write(nl)
                 # Useful for general features
                 else:
-                    # Only write lists of values if at least one is checked
-                    w = 0
-                    if (isinstance(vars[key], list)):
-                        for val in vars[key]:
-                            if (val.get() == 1):
-                                w = 1
-                                break
-                        if (w == 1):
-                            file.write("    ")
-                            if (key[-2:] == "CB"):
-                                file.write(key[:-2])
-                            else:
-                                file.write(key)
-                            file.write(" = ")
-                            self.value_write(vars[key],key,file)
-                            file.write(nl)
+                    file.write("    ")
+                    if (key[-2:] == "CB"):
+                        file.write(key[:-2])
                     else:
-                        file.write("    ")
-                        if (key[-2:] == "CB"):
-                            file.write(key[:-2])
-                        else:
-                            file.write(key)
-                        file.write(" = ")
-                        self.value_write(vars[key],key,file)
-                        file.write(nl)
+                        file.write(key)
+                    file.write(" = ")
+                    self.value_write(vars[key],key,file)
+                    file.write(nl)
                 
     # This method will help write classes that contain [[]] vars
     #
