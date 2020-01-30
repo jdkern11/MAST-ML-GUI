@@ -17,6 +17,7 @@ from classes.FeatureNormalization import FeatureNormalization as FN
 from classes.MiscSettings import MiscSettings as MS
 from classes.GeneralSetup import GeneralSetup as GS
 from classes.Models import Models as Mo
+from classes.HyperOpt import HyperOpt as HO
 import tkinter.filedialog as fd
 from sys import platform
 # try for python2, except for python3
@@ -40,14 +41,14 @@ class GUI:
         self.root = None
         # pages of gui
         self.pages = {"gs":None, "dc":None, "fg":None, "cl":None, "fn":None, 
-                      "ds":None, "fs":None, "lc":None, "ms":None, "mo":None}
+                      "ds":None, "fs":None, "lc":None, "ms":None, "mo":None, "ho":None}
         # Make lists of variables that will be altered based on user choices
         self.vars = {"headers": None, "csv_loc": None, "conf_loc": None, "result_loc": None, "driver": None,
-                     "cl": list(), "fg": list(), "fn": list(), "mo": list(), "ds": list(), "fs": list(), "lc": IntVar()}
+                     "cl": list(), "fg": list(), "fn": list(), "mo": list(), "ds": list(), "fs": list(), "lc": IntVar(), "ho": list()}
                      
         # General variable creations
         # empty values will all be set to headers for easier saving later one
-        self.input_features = None
+        self.features = None
         self.input_other = None
         self.input_testdata = None
         self.gs = GS()
@@ -114,6 +115,12 @@ class GUI:
         for i in range(0,len(self.mo.vars)):
             models.append(IntVar())
         self.vars["mo"] = models
+        
+        self.ho = HO()
+        hyper = list()
+        for i in range(0,len(self.ho.vars)):
+            hyper.append(IntVar())
+        self.vars["ho"] = hyper
                                 
     # adapted from Josselin, “tkinter Canvas Scrollbar with Grid?,” Stack Overflow, 01-May-1967. [Online]. Available: https://stackoverflow.com/questions/43731784/tkinter-canvas-scrollbar-with-grid. [Accessed: 03-Jan-2020].
     # generates scrollable canvas to store data in
@@ -155,11 +162,18 @@ class GUI:
 
             # resize buttons and find width and height of this canvas
             frame_buttons.update_idletasks()        
-            firstWcolumns_width = sum([features_list[j].winfo_width() for j in range(0, w)])
-            firstHrows_height = sum([features_list[i*w].winfo_height() for i in range(0, h)])
+            if (len(texts) >= w):
+                firstWcolumns_width = sum([features_list[j].winfo_width() for j in range(0, w)])
+                firstHrows_height = sum([features_list[i*w].winfo_height() for i in range(0, h)])
 
-            frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
-                            height=firstHrows_height)
+                frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
+                                height=firstHrows_height)
+            else:
+                firstWcolumns_width = sum([features_list[j].winfo_width() for j in range(0, len(texts))])
+                firstHrows_height = sum([features_list[i*len(texts)].winfo_height() for i in range(0, 1)])
+
+                frame_canvas.config(width=firstWcolumns_width + vsb.winfo_width(),
+                                height=firstHrows_height)
             canvas.config(scrollregion=canvas.bbox("all"))
             return (frame_canvas)
         else:
@@ -637,6 +651,34 @@ class GUI:
         if (run_save == 1):
             save_btn()
     
+    # This method will allow a user to choose hyper parameter optimization settings
+    def ho_btn(self,page,r,c):
+        for widget in page.winfo_children():
+            widget.destroy()
+        hoframe = page
+        
+        scroll_canvas = self.gen_xy_scroll_canvas(hoframe,1,1,self.ho.vars,self.vars["ho"],5,1)
+        user_choices = self.generate_user_options(scroll_canvas[2],1,0,self.ho.vars, self.ho.combobox_options)
+        scroll_canvas[1].update_idletasks()
+        scroll_canvas[1].config(scrollregion=scroll_canvas[2].bbox("all"))
+
+        #exit button to save choices
+        def save_btn():
+            for key in self.ho.vars:
+                for key2 in self.ho.vars[key] or []:
+                    if (isinstance(self.ho.vars[key][key2],list) or isinstance(self.ho.vars[key][key2],IntVar)):
+                        # do nothing if list
+                        pass
+                    elif (self.is_number(self.ho.vars[key][key2]) or isinstance(self.ho.vars[key][key2],str)):
+                        self.ho.vars[key][key2] = user_choices[key+key2].get()
+            
+        save_b = tk.Button(hoframe, 
+                       text="Save", 
+                       fg="red",
+                       command=save_btn)
+        save_b.pack(side=TOP)     
+        
+        
     # This method will allow a user to select the datasplits
     def ds_btn(self,page,r,c,run_save):
         for widget in page.winfo_children():
@@ -664,6 +706,8 @@ class GUI:
             # Add datasplits to learning curve options
             self.lc.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
             self.lc_btn(self.pages["lc"],0,0)
+            self.ho.combobox_initialization("ds",self.vars["ds"],self.ds.vars)
+            self.ho_btn(self.pages["ho"],0,0)
             
         save_b = tk.Button(dsframe, 
                        text="Save", 
@@ -700,6 +744,8 @@ class GUI:
             # Add models to learning curve options
             self.lc.combobox_initialization("model",self.vars["mo"],self.mo.vars)
             self.lc_btn(self.pages["lc"],0,0)
+            self.ho.combobox_initialization("model",self.vars["mo"],self.mo.vars)
+            self.ho_btn(self.pages["ho"],0,0)
             
         save_b = tk.Button(modelframe, 
                        text="Save", 
@@ -708,8 +754,8 @@ class GUI:
         save_b.pack(side=TOP)
         
         if (run_save == 1):
-            save_btn()
-        
+            save_btn()        
+    
     # This method will allow a user to choose misc settings
     def ms_btn(self,page,r,c):
         for widget in page.winfo_children():
@@ -742,7 +788,7 @@ class GUI:
                     
         self.vars["headers"] = headers
         # for easier saving
-        self.input_features = headers
+        self.features = headers
         self.input_other = headers
         self.input_testdata = headers
         
@@ -767,6 +813,8 @@ class GUI:
         self.ds.combobox_initialization(headers)
         self.fg.combobox_initialization(headers)
         self.general(self.pages['gs'],1,0)
+        self.ds_btn(gui.pages['ds'],0,0,1)
+        self.fg_btn(gui.pages['fg'],0,0)
 
     # Button to load driver location
     def load_driver(self):
@@ -826,6 +874,10 @@ class GUI:
             elif (line.find("[MiscSettings]") != -1):
                 curr_var = self.ms.vars['MiscSettings']
                 curr_tf = None
+                key = None               
+            elif (line.find("[HyperOpt]") != -1):
+                curr_var = self.ho.vars
+                curr_tf = self.vars["ho"]
                 key = None
                 
             # Run algo to set settings
@@ -1246,6 +1298,14 @@ class GUI:
         f.write(nl)
         
         # Write MiscSettings
+        f.write("[HyperOpt]")
+        f.write(nl)
+        self.write_double_brackets(self.ho.vars,self.vars['ho'],f,nl)      
+        f.write(nl)
+        
+        
+        
+        # Write MiscSettings
         f.write("[MiscSettings]")
         f.write(nl)
         self.save_helper(self.ms.vars,f,nl,1)      
@@ -1301,9 +1361,11 @@ class GUI:
                     return
                 except:
                     return
-
-        
-        command = "python -m mastml.mastml_driver \""
+        command = ""
+        if (os.name == 'nt'):
+            command = "python -m mastml.mastml_driver \""
+        elif (os.name == 'posix' or os.name == 'java'):
+            command = "pythonw -m mastml.mastml_driver \""
         # Store old directory to revert to after
         old_dir = os.getcwd()
         os.chdir(self.vars["driver"])
@@ -1353,7 +1415,9 @@ gui.pages['mo'] = ttk.Frame(nb)
 gui.pages['ds'] = ttk.Frame(nb)
 gui.pages['fs'] = ttk.Frame(nb)
 gui.pages['lc'] = ttk.Frame(nb)
+gui.pages['ho'] = ttk.Frame(nb)
 gui.pages['ms'] = ttk.Frame(nb)
+
 
 nb.add(gui.pages['gs'], text='General Setup')
 nb.add(gui.pages['dc'], text='Data Cleaning')
@@ -1364,7 +1428,9 @@ nb.add(gui.pages['mo'], text='Model Selection')
 nb.add(gui.pages['ds'], text='Data Splitting')
 nb.add(gui.pages['fs'], text='Feature Selection')
 nb.add(gui.pages['lc'], text='Learning Curve')
+nb.add(gui.pages['ho'], text='Hyperparameter Optimization')
 nb.add(gui.pages['ms'], text='Misc. Settings')
+
 
 nb.pack(expand=1, fill='both')
 
@@ -1421,5 +1487,6 @@ gui.model_btn(gui.pages['mo'],0,0,0)
 gui.ds_btn(gui.pages['ds'],0,0,0)
 gui.fs_btn(gui.pages['fs'],0,0,0)
 gui.lc_btn(gui.pages['lc'],0,0)
+gui.ho_btn(gui.pages['ho'],0,0)
 gui.ms_btn(gui.pages['ms'],0,0)
 root.mainloop()
